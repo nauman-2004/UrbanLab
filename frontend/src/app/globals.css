@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+/* UrbanLab V2 design tokens (see docs/design/v2). Dark navy + purple, with
+   one fixed color per evidence source used everywhere in the app. */
+@theme {
+  --color-bg: #090c1a;
+  --color-rail: #070915;
+  --color-panel: #11152d;
+  --color-panel2: #161b38;
+  --color-well: #0d1127;
+  --color-line: #232947;
+  --color-line2: #2d3460;
+  --color-ink: #e8eaf6;
+  --color-soft: #c7cbe6;
+  --color-muted: #8c92b6;
+  --color-dim: #5f668c;
+  --color-accent: #8b5cf6;
+  --color-accent2: #a78bfa;
+
+  /* provenance */
+  --color-costar: #60a5fa;
+  --color-vexcel: #fbbf24;
+  --color-mport: #f472b6;
+  --color-voice: #34d399;
+  --color-gap: #f87171;
+  --color-derived: #94a3b8;
+  --color-unverified: #fcd34d;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --animate-wave: wave 1.1s ease-in-out infinite;
+  --animate-flash: flash 1.6s ease-out 1;
+  --animate-pulse-ring: pulse-ring 1.8s ease-out infinite;
+
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.35); }
+    50% { transform: scaleY(1); }
+  }
+  @keyframes flash {
+    0% { background-color: rgb(167 139 250 / 0.35); }
+    100% { background-color: transparent; }
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.8); opacity: 0.8; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 70% -10%, #1b1446 0%, transparent 60%),
+    var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Hatched fill for missing values. */
+.hatch-gap {
+  background-image: repeating-linear-gradient(45deg, rgb(248 113 113 / 0.1) 0 6px, transparent 6px 12px);
+}
+/* Dashed outline for self-reported, unverified values. */
+.unverified-ring {
+  outline: 1.5px dashed var(--color-unverified);
+  outline-offset: -3px;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line2) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
