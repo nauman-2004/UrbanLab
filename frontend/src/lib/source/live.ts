@@ -10,7 +10,6 @@ import type { SourceListener, StudySource } from "./types";
  * The SSE stream replays history on (re)connect; the reducer drops duplicates by `seq`.
  */
 export class LiveSource implements StudySource {
-  readonly kind = "live" as const;
   private es: EventSource | null = null;
   private studyId: string | null = null;
   private t0 = 0;
@@ -87,8 +86,4 @@ export class LiveSource implements StudySource {
     this.es?.close();
     this.es = null;
   }
-
-  pause(): void {}
-  resume(): void {}
-  setSpeed(): void {}
 }

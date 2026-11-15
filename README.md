@@ -164,7 +164,6 @@ Never put secrets in variables that start with `NEXT_PUBLIC_`: those are bundled
 |---|---|---|---|
 | `npm run dev` | real agent with Gemini | API key and kit | normal use |
 | `npm run dev:fake` | real agent with a scripted test model | nothing | working on the UI or backend without using your API quota |
-| `npm run dev:demo` | none; replays a recorded run | nothing | a quick look at the UI |
 
 ## Project structure
 
@@ -180,13 +179,13 @@ UrbanLab/
 │   ├── llm.py               Aerial-image parking measurement (vision model, structured output)
 │   ├── runner.py            Runs the agent, turns its progress into events, handles approvals
 │   ├── data/                Sample CSV, placeholder tiles, saved Vexcel images (tiles/live), demo cache
-│   ├── scripts/             demo.sh (run a study from the terminal), record_replay.py, make_sample_tiles.py
+│   ├── scripts/             demo.sh (run a study from the terminal), make_sample_tiles.py
 │   └── tests/               Offline end-to-end test (scripted model) and unit tests
 ├── costar/                  urbanlab_costar package: reads the CoStar kit, Vexcel and Matterport adapters,
 │                            CLI (doctor, kit-inspect, kit-validate, purge). See costar/README.md.
 ├── frontend/                Next.js 16 + React 19 + Tailwind web app
 │   ├── scripts/dev.mjs      One-command launcher (backend + web app)
-│   └── src/                 Pages, components, event-stream state, replay data
+│   └── src/                 Pages, components, event-stream state
 ├── .env.example             Every setting, documented
 ├── dev.cmd, dev.sh          Launch from the repo root
 └── README.md
@@ -244,7 +243,7 @@ Live Vexcel requests are off by default. Set `VEXCEL_API_KEY`, `URBANLAB_LIVE_MO
 
 ## Data handling
 
-The CoStar kit, its field map and your `.env` are sponsor data or secrets, and they are kept out of git: `*.zip`, `.env` and `costar/.local/` are all ignored. Kit records are never written to the demo cache, and the committed offline demo uses only the placeholder sample. To remove every local copy of sponsor-derived files, run:
+The CoStar kit, its field map and your `.env` are sponsor data or secrets, and they are kept out of git: `*.zip`, `.env` and `costar/.local/` are all ignored. Kit records are never written to the demo cache. To remove every local copy of sponsor-derived files, run:
 
 ```bash
 cd backend && uv run python -m urbanlab_costar purge --yes                     # costar/.local/ and the field map

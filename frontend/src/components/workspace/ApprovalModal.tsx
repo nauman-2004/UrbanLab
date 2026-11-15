@@ -58,12 +58,12 @@ interface PlanArgs {
 }
 
 function PlanApproval({ ap }: { ap: Approval }) {
-  const { answer, sourceKind } = useStudy();
+  const { answer } = useStudy();
   const [feedback, setFeedback] = useState("");
   const [rejecting, setRejecting] = useState(false);
   const approveBtn = useRef<HTMLButtonElement>(null);
   const plan = ap.args as PlanArgs;
-  const canReject = ap.allowed_decisions.includes("reject") && sourceKind === "live";
+  const canReject = ap.allowed_decisions.includes("reject");
 
   useEffect(() => approveBtn.current?.focus(), []);
 
@@ -87,7 +87,7 @@ function PlanApproval({ ap }: { ap: Approval }) {
               variant="outline"
               onClick={() => setRejecting(true)}
               disabled={!canReject}
-              title={canReject ? undefined : "The recorded demo continues with the approved plan; rejecting works in live mode."}
+              title={canReject ? undefined : "This step can't be rejected."}
             >
               Reject · revise
             </Button>
@@ -148,7 +148,7 @@ function PlanApproval({ ap }: { ap: Approval }) {
 }
 
 function ToolApproval({ ap }: { ap: Approval }) {
-  const { answer, sourceKind } = useStudy();
+  const { answer } = useStudy();
   const submitBtn = useRef<HTMLButtonElement>(null);
   useEffect(() => submitBtn.current?.focus(), []);
 
@@ -158,7 +158,7 @@ function ToolApproval({ ap }: { ap: Approval }) {
       title={`Approve ${ap.tool}`}
       footer={
         <>
-          {sourceKind === "live" && (
+          {ap.allowed_decisions.includes("reject") && (
             <Button variant="outline" onClick={() => answer([{ action_id: ap.action_id, approved: false }])}>
               Reject
             </Button>

@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "node scripts/dev.mjs live",
     "dev:fake": "node scripts/dev.mjs fake",
-    "dev:demo": "node scripts/dev.mjs demo",
     "dev:web": "next dev",
     "build": "next build",
     "start": "next start",

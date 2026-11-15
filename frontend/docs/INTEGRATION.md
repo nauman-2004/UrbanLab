@@ -14,13 +14,12 @@ Set in the **repo-root `.env`** (loaded by `next.config.ts`; `frontend/.env.loca
 
 | Variable | Values |
 |---|---|
-| `NEXT_PUBLIC_STUDY_SOURCE` | `replay` (default): plays a recorded backend run, no backend needed · `live`: talks to the backend |
-| `NEXT_PUBLIC_API_BASE` | backend URL for live mode, default `http://localhost:8000` |
+| `NEXT_PUBLIC_API_BASE` | backend URL, default `http://localhost:8000` |
 
 The backend must allow the frontend origin in `CORS_ORIGINS`. Never put API keys in `NEXT_PUBLIC_*`.
 
-`npm run dev` (in `frontend/`) sets these for you: it starts the backend, waits for `/health`, then starts the UI in
-live mode. `npm run dev:fake` uses the scripted test model and `npm run dev:demo` runs replay mode only.
+`npm run dev` (in `frontend/`) sets these for you: it starts the backend, waits for `/health`, then starts the UI.
+`npm run dev:fake` uses the scripted test model instead of Gemini.
 To run the pieces separately:
 
 ```bash
@@ -62,15 +61,3 @@ Rules the UI relies on:
 2. **Missing is explicit.** A cell with `status: "missing"` always has a `reason`; `"Not yet collected."` is the placeholder before a tool runs.
 3. **Approvals come in rounds.** All `approval_required` events from one pause share `round`; today the only gate is
    the plan review.
-
-## Replay mode
-
-`src/lib/replay/recorded-study.json` is a recorded event stream, played by `src/lib/source/replay.ts` with
-compressed timing; it pauses at each approval like the real agent. Re-record it after changing the backend's events:
-
-```bash
-cd backend
-uv run uvicorn tests.fake_server:app --port 8000   # or main:app for a run with the live models (uses API quota)
-uv run python scripts/record_replay.py
-cp data/tiles/*.png ../frontend/public/replay/tiles/   # tiles the replay shows
-```

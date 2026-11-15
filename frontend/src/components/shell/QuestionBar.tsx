@@ -6,17 +6,16 @@ import { DEFAULT_QUESTION, useStudy } from "@/lib/state/StudyProvider";
 import { Icon } from "../ui/Icon";
 
 export function QuestionBar() {
-  const { state, status, statusDetail, start, sourceKind } = useStudy();
+  const { state, status, statusDetail, start } = useStudy();
   const [draft, setDraft] = useState(DEFAULT_QUESTION);
-  const running = status === "connecting" || status === "playing" || status === "paused" || status === "awaiting";
+  const running = status === "connecting" || status === "playing" || status === "awaiting";
   const current = currentStepIndex(state);
   const started = state.studyId != null;
-  // Replay mode plays one recorded study, so its question is fixed.
-  const editable = sourceKind === "live" && !running;
+  const editable = !running;
   const question = started ? state.question : draft;
 
   const run = () => {
-    const q = (sourceKind === "live" ? draft : question).trim();
+    const q = draft.trim();
     if (q.length >= 5) start(q);
   };
 
@@ -34,7 +33,7 @@ export function QuestionBar() {
         </div>
         <div className="min-w-0 flex-1">
           <label htmlFor="rq" className="text-[11px] font-medium text-muted">
-            Research question{sourceKind === "replay" && " · recorded demo run"}
+            Research question
           </label>
           {editable ? (
             <input
@@ -45,7 +44,7 @@ export function QuestionBar() {
             />
           ) : (
             <div id="rq" className="text-[15px] font-semibold leading-snug">
-              {sourceKind === "replay" && !started ? "Recorded study · press Run to replay" : question}
+              {question}
             </div>
           )}
           {status === "error" && statusDetail && <p className="mt-1 text-[11.5px] text-gap">{statusDetail}</p>}
@@ -82,7 +81,7 @@ export function QuestionBar() {
 }
 
 function Controls({ running, onRun }: { running: boolean; onRun: () => void }) {
-  const { status, togglePause, speed, setSpeed, sourceKind } = useStudy();
+  const { status } = useStudy();
 
   if (!running)
     return (
@@ -98,43 +97,13 @@ function Controls({ running, onRun }: { running: boolean; onRun: () => void }) {
       </div>
     );
 
-  if (sourceKind === "live") return <StatusPill status={status} />;
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <StatusPill status={status} />
-      {(status === "playing" || status === "paused") && (
-        <button
-          type="button"
-          onClick={togglePause}
-          aria-label={status === "playing" ? "Pause replay" : "Resume replay"}
-          className="grid size-8 place-items-center rounded-lg border border-line2 text-muted hover:text-ink"
-        >
-          <Icon name={status === "playing" ? "pause" : "play"} className="size-3" />
-        </button>
-      )}
-      <div className="flex rounded-lg border border-line2 p-0.5" role="group" aria-label="Replay speed">
-        {[1, 2, 4].map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => setSpeed(n)}
-            aria-pressed={speed === n}
-            className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] ${speed === n ? "bg-accent text-white" : "text-muted hover:text-ink"}`}
-          >
-            {n}×
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  return <StatusPill status={status} />;
 }
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, [string, string]> = {
     connecting: ["Connecting", "text-muted border-line2"],
     playing: ["Running", "text-voice border-voice/40 bg-voice/10"],
-    paused: ["Paused", "text-muted border-line2"],
     awaiting: ["Awaiting approval", "text-unverified border-unverified/40 bg-unverified/10"],
     done: ["Complete", "text-accent2 border-accent2/40 bg-accent/10"],
     error: ["Failed", "text-gap border-gap/40 bg-gap/10"],
