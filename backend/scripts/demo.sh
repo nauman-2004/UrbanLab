@@ -17,8 +17,11 @@ PY="${PY:-python}"
 json() { "$PY" -c "import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1], {'json': json}, {'d': d}))" "$1"; }
 
 echo "==> POST /studies"
-SID=$(curl -fsS -X POST "$API/studies" -H 'Content-Type: application/json' \
-  -d "{\"question\": \"$QUESTION\"}" | json 'd["study_id"]')
+# Build the body with json.dumps: it escapes quotes and non-ASCII (e.g. "1975–1995"), which curl on
+# Windows would otherwise send in the wrong encoding.
+BODY=$("$PY" -c 'import json, sys; print(json.dumps({"question": sys.argv[1]}))' "$QUESTION")
+SID=$(printf '%s' "$BODY" | curl -fsS -X POST "$API/studies" -H 'Content-Type: application/json' \
+  --data-binary @- | json 'd["study_id"]')
 echo "    study_id=$SID"
 echo "==> GET /studies/$SID/events (SSE)"
 

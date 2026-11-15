@@ -1,5 +1,6 @@
 "use client";
 
+import { describeFilter, describeSample } from "@/lib/format";
 import { STEPS } from "@/lib/state/reducer";
 import { useStudy } from "@/lib/state/StudyProvider";
 import { Card, CardHeader, Label } from "../ui/Card";
@@ -32,7 +33,7 @@ export function ResearchPlan() {
         ) : (
           <>
             <div className="mb-3 rounded-[10px] border border-accent/30 bg-accent/10 px-3 py-2.5 text-[12.5px]">
-              <div className="mb-0.5 text-[9.5px] font-bold tracking-[0.09em] text-accent2">HYPOTHESIS</div>
+              <div className="mb-0.5 text-[9.5px] font-bold tracking-[0.09em] text-accent2">{plan.goal === "lookup" ? "LOOKUP" : "HYPOTHESIS"}</div>
               {plan.hypothesis}
             </div>
             <Label>Variables</Label>
@@ -44,9 +45,14 @@ export function ResearchPlan() {
               ))}
             </div>
             <Label>Sample</Label>
-            <p className="mb-3 text-xs text-soft">
-              {plan.sample.n} {plan.sample.property_type} properties in {plan.sample.city} (CoStar)
-            </p>
+            <p className="mb-1.5 text-xs text-soft">{describeSample(plan.sample)} (CoStar)</p>
+            {!!plan.sample.filters?.length && (
+              <ul className="mb-3 space-y-0.5 font-mono text-[10.5px] text-muted">
+                {plan.sample.filters.map((f) => (
+                  <li key={describeFilter(f)}>• {describeFilter(f)}</li>
+                ))}
+              </ul>
+            )}
           </>
         )}
         {started && (

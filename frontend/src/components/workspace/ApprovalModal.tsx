@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { pendingRound } from "@/lib/state/reducer";
 import { useStudy } from "@/lib/state/StudyProvider";
-import type { Approval } from "@/lib/types";
+import { describeFilter, describeSample } from "@/lib/format";
+import type { Approval, PlanSample } from "@/lib/types";
 import { Button } from "../ui/Card";
 import { Icon } from "../ui/Icon";
 import { VarChip } from "../ui/Provenance";
@@ -50,9 +51,10 @@ const primaryCls =
   "inline-flex items-center gap-1.5 rounded-[9px] bg-gradient-to-br from-accent to-violet-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-white shadow-[0_6px_18px_#7c3aed44] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent2 disabled:opacity-50";
 
 interface PlanArgs {
+  goal?: "compare" | "lookup";
   hypothesis?: string;
   variables?: { name: string; source: string; type?: string }[];
-  sample?: { city?: string; property_type?: string; n?: number };
+  sample?: Partial<PlanSample>;
 }
 
 function PlanApproval({ ap }: { ap: Approval }) {
@@ -98,7 +100,7 @@ function PlanApproval({ ap }: { ap: Approval }) {
     >
       <p className="text-soft">{ap.description || "Review the research plan before any data is collected."}</p>
       <div>
-        <Heading>Hypothesis</Heading>
+        <Heading>{plan.goal === "lookup" ? "Lookup" : "Hypothesis"}</Heading>
         <p className="rounded-[10px] border border-accent/30 bg-accent/10 px-3 py-2">{plan.hypothesis ?? "—"}</p>
       </div>
       <div>
@@ -113,9 +115,17 @@ function PlanApproval({ ap }: { ap: Approval }) {
       </div>
       <div>
         <Heading>Sample</Heading>
-        <p className="text-soft">
-          {plan.sample?.n} {plan.sample?.property_type} properties in {plan.sample?.city}
-        </p>
+        <p className="text-soft">{describeSample(plan.sample)}</p>
+        {!!plan.sample?.filters?.length && (
+          <>
+            <Heading>Every property must meet</Heading>
+            <ul className="space-y-0.5 font-mono text-[11.5px] text-soft">
+              {plan.sample.filters.map((f) => (
+                <li key={describeFilter(f)}>• {describeFilter(f)}</li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
       {rejecting && (
         <div>
