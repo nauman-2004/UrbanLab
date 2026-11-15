@@ -5,6 +5,7 @@ optionally in live mode, room classifications (1 GraphQL request per model).
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from ..budget import BudgetExceeded
@@ -12,6 +13,7 @@ from ..http import LiveModeDisabled, TransportError
 from ..provenance import EvidenceRef, Gap, GapKind, Method, Source, Value
 from .client import MatterportClient, MatterportError, showcase_url
 from .index import ModelsIndex
+from ..kit.repository import normalize_id
 
 SCOPE_NOTE = "a scan may cover one suite, unit or amenity rather than the whole building"
 INDEX_VARS = {"matterport_model_count", "scanned_room_count"}
@@ -29,40 +31,52 @@ class MatterportResult:
 
 
 class MatterportAdapter:
-    def __init__(self, index: ModelsIndex, client: MatterportClient | None = None) -> None:
+    def __init__(self, index: ModelsIndex | None, client: MatterportClient | None = None,
+                 links: Mapping[str, Sequence[str]] | None = None) -> None:
+        """``links``: CoStar property id -> Matterport model ids (e.g. the kit's starter CSV)."""
         self.index = index
         self.client = client
+        self.links = {normalize_id(k) or k: list(v) for k, v in (links or {}).items()}
 
     def collect(self, costar_id: str, wants: set[str]) -> MatterportResult:
         res = MatterportResult()
         wants = wants & SUPPORTED
-        models = self.index.for_costar_property(costar_id)
-        res.sids = [m.sid for m in models]
-        if models:
+        models = self.index.for_costar_property(costar_id) if self.index else []
+        sids = [m.sid for m in models]
+        sids += [s for s in self.links.get(normalize_id(costar_id) or costar_id, []) if s not in sids]
+        res.sids = sids
+        for sid in sids:
             try:
-                res.showcase_url = showcase_url(models[0].sid)
+                res.showcase_url = showcase_url(sid)
+                break
             except ValueError:
-                res.showcase_url = None
+                continue
+        sources = ["models_index.csv"] if self.index else []
+        if self.links:
+            sources.append("kit starter list")
         if "matterport_model_count" in wants:
             res.values["matterport_model_count"] = Value(
-                variable="matterport_model_count", value=len(models), source=Source.MATTERPORT,
-                method=Method.OBSERVED, evidence=EvidenceRef(ref="models_index.csv by costar_property_id",
+                variable="matterport_model_count", value=len(sids), source=Source.MATTERPORT,
+                method=Method.OBSERVED, evidence=EvidenceRef(ref=" + ".join(sources) + " by property id",
                                                             note=SCOPE_NOTE),
             )
-        if not models:
+        if not sids:
             for v in wants - {"matterport_model_count"}:
                 res.gaps[v] = Gap(v, GapKind.NOT_FOUND, "no Matterport model linked to this property", Source.MATTERPORT)
             return res
         if "scanned_room_count" in wants:
+            if not models:
+                res.gaps["scanned_room_count"] = Gap("scanned_room_count", GapKind.MISSING_IN_RECORD,
+                                                     "linked models are not in models_index.csv", Source.MATTERPORT)
             counts = [m.room_count for m in models if m.room_count is not None]
-            if counts:
+            if counts and models:
                 res.values["scanned_room_count"] = Value(
                     variable="scanned_room_count", value=max(counts), source=Source.MATTERPORT,
                     method=Method.OBSERVED,
                     evidence=EvidenceRef(ref=f"models_index.csv · {len(models)} model(s)",
                                          note=f"largest room count among linked models; {SCOPE_NOTE}"),
                 )
-            else:
+            elif models:
                 res.gaps["scanned_room_count"] = Gap("scanned_room_count", GapKind.MISSING_IN_RECORD,
                                                      "room_count empty in index", Source.MATTERPORT)
         if "room_labels" in wants:
@@ -71,7 +85,7 @@ class MatterportAdapter:
                                               Source.MATTERPORT)
                 return res
             try:
-                rooms = self.client.model_rooms(models[0].sid)
+                rooms = self.client.model_rooms(sids[0])
             except (BudgetExceeded, LiveModeDisabled) as e:
                 res.stop_provider = True
                 kind = GapKind.BUDGET if isinstance(e, BudgetExceeded) else GapKind.BLOCKED
@@ -91,7 +105,7 @@ class MatterportAdapter:
             res.values["room_labels"] = Value(
                 variable="room_labels", value=dict(labels), source=Source.MATTERPORT,
                 method=Method.MODEL_ESTIMATE, confidence=round(min(confs), 3) if confs else None,
-                evidence=EvidenceRef(ref=f"Matterport rooms · model 1 of {len(models)}",
+                evidence=EvidenceRef(ref=f"Matterport rooms · model 1 of {len(sids)}",
                                      note=f"Matterport room classification; {SCOPE_NOTE}"),
             )
         return res

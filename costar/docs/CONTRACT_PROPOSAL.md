@@ -51,3 +51,41 @@ export type VariableKey = "yearBuilt" | "lotSf" | "rbaSf" | "surfaceSf" | "garag
 ## Runtime behaviour today
 
 The reducer spreads `...e.cell`, so an extra `provenance` key passes through without breaking anything. TypeScript only notices on the producer side. Even so, `extended` stays off by default until this proposal is approved.
+
+## Missing-data states (needed before real data is shown)
+
+**What the backend does today:**
+- It never sends a placeholder. `occupancyPct` and `propertyClass` are sent only when the data supports them.
+- `occupancyPct` is the *recorded tenant occupancy*: occupied SF of current tenancies divided by RBA, as of the kit snapshot date. It is **not** a vacancy rate.
+- With `profile="extended"`, `PropertyInfo` also carries a proposed `missing` map with the reason for each absent field, e.g. `{"occupancyPct": "1 of 2 current tenancies have no occupied area; a total would understate occupancy"}`.
+
+**The current frontend** renders an absent field as `undefined%` / `Class undefined`. It also hard-codes "Houston TX · Office", which is wrong for Los Angeles properties and for other types. Proposed patch for `frontend/src/components/workspace/PropertyPanel.tsx` (not applied):
+
+```diff
+-          {row.info.address}, Houston TX · Office · Class {row.info.propertyClass} · {row.info.id}
++          {row.info.address} · {row.info.propertyClass ? `Class ${row.info.propertyClass}` : "Class not recorded"} · {row.info.id}
+...
+-              ["Occupancy", `${row.info.occupancyPct}%`],
++              ["Occupancy", row.info.occupancyPct != null ? `${row.info.occupancyPct}%` : "Not recorded"],
+```
+
+These two changes pair with:
+
+```ts
+// types.ts (proposal)
+export interface PropertyInfo {
+  // ...
+  propertyClass?: string;
+  occupancyPct?: number;              // recorded tenant occupancy; absent when not supported by data
+  missing?: Record<string, string>;   // field -> human-readable reason it is absent
+}
+```
+
+## Parking: never mixed
+
+| Frontend key | Source | Method | Notes |
+|---|---|---|---|
+| `surfaceSf` | Vexcel `elements/detect` | `model_estimate` (+ confidence) | area in sq ft; the only source for this key |
+| `garageStalls` | none today | — | the kit records "Covered" spaces, which are **not** treated as garage stalls; interview only |
+| *(dataset only)* `parking_spaces_surface` | CoStar kit | `computed` (sum of recorded counts) | CoStar-reported **count**, not area |
+| *(dataset only)* `parking_spaces_covered` | CoStar kit | `computed` | covered ≠ garage |

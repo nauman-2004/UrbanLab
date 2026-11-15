@@ -136,7 +136,7 @@ def combine_method(*methods: Method) -> Method:
 
 
 def derive_ratio(variable: str, numerator: Value | Gap | None, denominator: Value | Gap | None,
-                 *, unit: str = "ratio", note: str | None = None) -> Value | Gap:
+                 *, unit: str = "ratio", note: str | None = None, scale: float = 1.0) -> Value | Gap:
     """numerator / denominator with inherited provenance (estimates stay estimates)."""
     missing = [v for v in (numerator, denominator) if not isinstance(v, Value)]
     if missing:
@@ -154,7 +154,7 @@ def derive_ratio(variable: str, numerator: Value | Gap | None, denominator: Valu
     self_rep = Method.SELF_REPORTED in (numerator.method, denominator.method)
     return Value(
         variable=variable,
-        value=round(num / den, 4),
+        value=round(num / den * scale, 4),
         unit=unit,
         source=Source.DERIVED,
         method=method,

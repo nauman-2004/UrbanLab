@@ -19,6 +19,8 @@ from .budget import RequestBudget
 from .config import Settings
 from .http import ApiClient
 from .kit import KitArchive, PropertyRepository, load_field_map
+from .kit import tenancy
+from .kit.repository import normalize_id
 from .matterport import MatterportAdapter, MatterportClient, ModelsIndex
 from .research.planner import Capabilities
 from .research.pipeline import Adapters
@@ -53,6 +55,31 @@ def build_runtime(settings: Settings, mode: Mode) -> Runtime:
     raise ValueError("mode must be 'synthetic' or 'real'")
 
 
+LINKS_DATASET = "matterport_links"
+
+
+def matterport_links(repo: PropertyRepository) -> dict[str, list[str]]:
+    """Property id -> Matterport model ids from an optional kit dataset (fields property_id, model_id)."""
+    if repo.field_map.get(LINKS_DATASET) is None:
+        return {}
+    out: dict[str, list[str]] = {}
+    for r in repo.records(LINKS_DATASET):
+        pid, sid = r.get("property_id"), str(r.get("model_id") or "").strip()
+        if pid is None or not sid:
+            continue
+        key = normalize_id(pid)
+        if key and sid not in out.setdefault(key, []):
+            out[key].append(sid)
+    return out
+
+
+def _kit_joins(repo: PropertyRepository | None) -> tuple[frozenset[str], dict[str, str]]:
+    if repo is None:
+        return frozenset(), {"tenancy": "CoStar kit not configured"}
+    ok, why = tenancy.tenancy_available(repo)
+    return (frozenset({"tenancy"}), {}) if ok else (frozenset(), {"tenancy": why})
+
+
 def _synthetic(settings: Settings) -> Runtime:
     stack = ExitStack()
     tmp = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="urbanlab-synthetic-")))
@@ -65,11 +92,12 @@ def _synthetic(settings: Settings) -> Runtime:
                                          synthetic.SyntheticMatterportTransport(),
                                          RequestBudget("matterport", 1000, 1000.0), max_retries=0))
     repo = PropertyRepository(kit, fmap)
+    links = matterport_links(repo)
     caps = Capabilities(kit_ready=True, kit_fields=fmap.property_fields(), vexcel="offline",
                         vexcel_reason="synthetic fixtures", matterport_index=True, matterport_api="offline",
                         matterport_reason="synthetic fixtures", budgets={"vexcel": 0, "matterport": 0},
-                        max_retries=0)
-    return Runtime("synthetic", Adapters(repo, VexcelAdapter(vexcel), MatterportAdapter(index, mclient)),
+                        max_retries=0, kit_joins=_kit_joins(repo)[0], kit_join_reasons=_kit_joins(repo)[1])
+    return Runtime("synthetic", Adapters(repo, VexcelAdapter(vexcel), MatterportAdapter(index, mclient, links)),
                    caps, _stack=stack)
 
 
@@ -77,6 +105,7 @@ def _real(settings: Settings) -> Runtime:
     stack = ExitStack()
     problems: list[str] = []
     repo = None
+    links: dict[str, list[str]] = {}
     kit_fields: frozenset[str] = frozenset()
     if settings.costar_kit_zip is None:
         problems.append("COSTAR_KIT_ZIP is not set")
@@ -86,6 +115,7 @@ def _real(settings: Settings) -> Runtime:
             fmap = load_field_map(settings.costar_field_map)
             repo = PropertyRepository(kit, fmap)
             kit_fields = fmap.property_fields()
+            links = matterport_links(repo)
         except Exception as e:  # report, never crash with a traceback that could echo paths/values
             problems.append(f"CoStar kit unavailable: {type(e).__name__}: {e}")
     index = None
@@ -96,6 +126,9 @@ def _real(settings: Settings) -> Runtime:
             problems.append(f"models index unavailable: {e}")
     vexcel = VexcelAdapter(VexcelClient.from_settings(settings))
     mclient = MatterportClient.from_settings(settings)
-    caps = Capabilities.from_settings(settings, kit_fields, repo is not None, index is not None)
-    adapters = Adapters(repo, vexcel, MatterportAdapter(index, mclient) if index else None) if repo else None
+    joins, join_reasons = _kit_joins(repo)
+    caps = Capabilities.from_settings(settings, kit_fields, repo is not None, index is not None or bool(links),
+                                      joins, join_reasons)
+    mp = MatterportAdapter(index, mclient, links) if (index or links) else None
+    adapters = Adapters(repo, vexcel, mp) if repo else None
     return Runtime("real", adapters, caps, problems, _stack=stack)

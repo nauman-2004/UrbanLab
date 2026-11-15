@@ -11,7 +11,7 @@ from ..provenance import EvidenceRef, Gap, GapKind, Method, Source, Value
 from .client import VexcelClient, VexcelError, VexcelNotFound
 from .parse import parse_detections, parse_property, summarize_label
 
-PARCEL_VARS = {"land_area_sf", "footprint_sf"}
+PARCEL_VARS = {"land_area_sf", "parcel_area_sf", "footprint_sf"}
 PARKING_VAR = "surface_parking_sf"
 SUPPORTED = PARCEL_VARS | {PARKING_VAR}
 
@@ -57,12 +57,14 @@ class VexcelAdapter:
 
         ref = f"Vexcel property/extract · {parcel.collection or 'collection n/a'}"
         res.parcel_wkt = geo.polygon_wkt(parcel.parcel[0])
-        if "land_area_sf" in wants:
-            res.values["land_area_sf"] = Value(
-                variable="land_area_sf", value=round(parcel.parcel_area_m2 * geo.SQM_TO_SQFT),
-                unit="sf", source=Source.VEXCEL, method=Method.COMPUTED,
-                evidence=EvidenceRef(ref=ref, note="parcel polygon area computed by UrbanLab (local planar projection)"),
-            )
+        for var in ("land_area_sf", "parcel_area_sf"):
+            if var in wants:
+                res.values[var] = Value(
+                    variable=var, value=round(parcel.parcel_area_m2 * geo.SQM_TO_SQFT),
+                    unit="sf", source=Source.VEXCEL, method=Method.COMPUTED,
+                    evidence=EvidenceRef(ref=ref, note="parcel polygon area computed by UrbanLab "
+                                                       "(local planar projection)"),
+                )
         if "footprint_sf" in wants:
             if parcel.footprint_sf is None:
                 res.gaps["footprint_sf"] = Gap("footprint_sf", GapKind.MISSING_IN_RECORD,

@@ -21,6 +21,14 @@ from ..http import HttpRequest, HttpResponse
 
 SYNTHETIC_FIELD_MAP = """\
 # Field map for the SYNTHETIC kit used in tests. Not the CoStar schema.
+[kit]
+as_of = "2026-06-30"
+
+[regions]
+field = "market_id"
+houston = [1]
+los_angeles = [2]
+
 [datasets.commercial_property]
 members = "synthetic-commercial/*.json"
 format = "json"
@@ -33,16 +41,40 @@ city = "where.town"
 state = "where.region"
 lat = "where.point.y"
 lon = "where.point.x"
+market_id = "where.mkt"
 property_type = "facts.use"
 building_class = "facts.grade"
 year_built = "facts.built"
 building_area_sf = "facts.nra"
 land_area_sf = ["facts.site_sqft", "facts.site_acres_typo"]
-occupancy_pct = "facts.occ"
 garage_stalls = ""
+vacancy_pct = { path = "facts.vac", kind = "number" }
 
 [datasets.commercial_property.units]
 land_area_sf = "sf"
+
+[datasets.matterport_links]
+members = "synthetic-links.csv"
+format = "csv"
+id = "PropertyKey"
+
+[datasets.matterport_links.fields]
+property_id = "PropertyKey"
+model_id = "ModelKey"
+
+[datasets.location_occupancy]
+members = "synthetic-occupancy.jsonl"
+format = "jsonl"
+id = "oid"
+
+[datasets.location_occupancy.fields]
+property_id = "pid"
+from_date = "start"
+to_date = "end"
+move_in_date = "movein"
+occupied_sf = { list = "rooms", take = "sf", agg = "sum" }
+spaces_count = { list = "rooms", agg = "count" }
+spaces_missing_sf = { list = "rooms", take = "sf", agg = "count_null" }
 
 [datasets.synthetic_tenancy]
 members = "synthetic-tenancy.jsonl"
@@ -102,6 +134,27 @@ def _buildings() -> list[SynBuilding]:
 
 BUILDINGS = _buildings()
 
+# Synthetic tenancies (as_of 2026-06-30) exercising every occupancy rule. RBA of 90001 is 180,000 sf.
+_T = "2010-01-01T00:00:00Z"
+SYNTHETIC_OCCUPANCY: list[dict[str, Any]] = [
+    # 90001: 2 current (50k + 40k) -> 50.0 %; 1 ended; 1 future start
+    {"oid": 1, "pid": 90001, "start": _T, "rooms": [{"sf": 50_000}]},
+    {"oid": 2, "pid": 90001, "start": _T, "end": None, "rooms": [{"sf": 30_000}, {"sf": 10_000}]},
+    {"oid": 3, "pid": 90001, "start": _T, "end": "2020-01-01T00:00:00Z", "rooms": [{"sf": 99_000}]},
+    {"oid": 4, "pid": 90001, "start": "2027-03-01T00:00:00Z", "rooms": [{"sf": 20_000}]},
+    # 90002: a current tenancy with a space lacking area -> gap
+    {"oid": 5, "pid": 90002, "start": _T, "rooms": [{"sf": 10_000}, {"sf": None}]},
+    # 90003: recorded area above RBA (230,000) -> gap
+    {"oid": 6, "pid": 90003, "start": _T, "rooms": [{"sf": 250_000}]},
+    # 90004: only ended tenancies -> 0 current, percentage is a gap (not 0 %)
+    {"oid": 7, "pid": 90004, "start": _T, "end": "2019-05-01T00:00:00Z", "rooms": [{"sf": 1_000}]},
+    # 90006: leased but not yet moved in (excluded) + 10k current
+    {"oid": 8, "pid": 90006, "start": _T, "movein": "2027-01-01T00:00:00Z", "rooms": [{"sf": 70_000}]},
+    {"oid": 9, "pid": 90006, "start": _T, "movein": "2011-01-01T00:00:00Z", "rooms": [{"sf": 10_000}]},
+]
+# Recorded vacancy (synthetic): one valid, one recorded zero, one invalid (> 100).
+SYNTHETIC_VACANCY: dict[str, Any] = {"90007": 6, "90008": 0, "90009": 120}
+
 
 def build_kit(directory: Path) -> Path:
     """Write the synthetic kit zip (unencrypted) into ``directory``."""
@@ -115,18 +168,25 @@ def build_kit(directory: Path) -> Path:
                 facts["built"] = b.year
             if b.lot_sf is not None:
                 facts["site_sqft"] = f"{b.lot_sf:,}"  # string with thousands separator on purpose
+            if b.sid in SYNTHETIC_VACANCY:
+                facts["vac"] = SYNTHETIC_VACANCY[b.sid]
             rec = {
                 "synthetic_id": b.sid.zfill(7),  # leading zeros on purpose: ids must normalize
                 "label": b.name,
                 "where": {"street": f"{100 + int(b.sid) % 100} Synthetic St",
                           "town": "Los Angeles" if b.lat > 33 and b.lon < -110 else "Houston",
                           "region": "CA" if b.lon < -110 else "TX",
+                          "mkt": 2 if b.lon < -110 else 1,
                           "point": {"y": b.lat, "x": b.lon}},
                 "facts": facts,
             }
             zf.writestr(f"synthetic-commercial/{b.sid}.json", json.dumps(rec))
         lines = [json.dumps({"tid": f"T{k}", "pid": BUILDINGS[k % 3].sid, "who": f"Tenant {k}"}) for k in range(6)]
         zf.writestr("synthetic-tenancy.jsonl", "\n".join(lines) + "\n")
+        zf.writestr("synthetic-occupancy.jsonl", "\n".join(json.dumps(o) for o in SYNTHETIC_OCCUPANCY) + "\n")
+        # Extra links not in the models index (merge test): buildings 2 and 3, plus a duplicate of building 1.
+        links = ["PropertyKey,ModelKey", "90001,SYNTHMODEL00", "90002,SYNTHLINK002", "90003,SYNTHLINK003", "90003,"]
+        zf.writestr("synthetic-links.csv", "\n".join(links) + "\n")
     return path
 
 
@@ -235,7 +295,8 @@ DEMO_SPEC: dict[str, Any] = {
     "region": "houston",
     "property_types": ["office"],
     "variables": ["year_built", "building_area_sf", "land_area_sf", "surface_parking_sf",
-                  "garage_stalls", "offsite_spaces", "surface_parking_share", "matterport_model_count"],
+                  "garage_stalls", "offsite_spaces", "surface_parking_share", "matterport_model_count",
+                  "occupancy_pct"],
     "sample_limit": 20,
     "hypothesis": "Pre-1980 offices have a higher surface-parking share of their lot than post-2000 offices.",
 }

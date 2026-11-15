@@ -9,18 +9,22 @@ a self-contained demo).
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ..dataset import Dataset, StudyProperty
 from ..events import EventWriter, Profile
 from ..interviews import interview_gap
+from ..kit import tenancy
 from ..kit.repository import PropertyFilter, PropertyRepository
 from ..matterport.adapter import MatterportAdapter
 from ..provenance import Gap, GapKind, Source, Value, derive_ratio
 from ..vexcel.adapter import VexcelAdapter
 from .planner import ResearchPlan, study_plan_event_payload
-from .variables import VARIABLES
+from .variables import VARIABLES, parse_derived
+
+
+_NO_FIELD = Gap("building_class", GapKind.NOT_MAPPED, "building class is not available from the kit")
 
 
 class PlanError(RuntimeError):
@@ -111,6 +115,7 @@ def run_research(
     todos.set("t-select", "running")
     records = adapters.repository.properties(PropertyFilter(
         region=spec.region, property_types=spec.property_types, ranges=spec.filters, limit=plan.sample_limit,
+        ids=spec.property_ids,
     ))
     w.tool("costar.kit.select_properties", summary=f"{len(records)} properties matched",
            args=f"region={spec.region} types={list(spec.property_types)} limit={plan.sample_limit}")
@@ -120,6 +125,13 @@ def run_research(
 
     dataset = Dataset(variables=_collect_set(plan))
     todos.set("t-kit", "running")
+    tenancy_vars = plan.chosen("kitjoin:tenancy")
+    tenancies: dict[str, tenancy.TenancySummary] = {}
+    as_of = adapters.repository.field_map.as_of or ""
+    if tenancy_vars:
+        tenancies = tenancy.summarize(adapters.repository, {r.kit_id for r in records})
+        w.tool("costar.kit.join_tenancies", summary=f"tenancies joined for {len(tenancies)} of {len(records)} "
+               f"properties (as of {as_of})")
     for i, rec in enumerate(records, start=1):
         sp = StudyProperty(
             property_id=f"P-{i:02d}", costar_id=rec.kit_id, name=rec.get("name"), address=rec.get("address"),
@@ -127,8 +139,18 @@ def run_research(
         )
         dataset.properties.append(sp)
         for var in kit_vars:
-            sp.set(rec.values.get(var) or rec.gaps.get(var)
-                   or Gap(var, GapKind.MISSING_IN_RECORD, "empty in the CoStar record", Source.COSTAR))
+            item = (rec.values.get(var) or rec.gaps.get(var)
+                    or Gap(var, GapKind.MISSING_IN_RECORD, "not recorded in the CoStar record", Source.COSTAR))
+            opt = plan.variables[var].option
+            if isinstance(item, Value) and opt and opt.note:
+                note = "; ".join(n for n in (item.evidence.note, opt.note) if n)
+                item = replace(item, evidence=replace(item.evidence, note=note))
+            sp.set(item)
+        if tenancy_vars:
+            joined = tenancy.tenancy_values(rec.kit_id, tenancies.get(rec.kit_id), sp.values.get("building_area_sf"),
+                                            as_of)
+            for var in tenancy_vars:
+                sp.set(joined[var])
         if adapters.matterport and (mp_index_vars or mp_live_vars):
             mres = adapters.matterport.collect(rec.kit_id, mp_index_vars)
             for item in _items(mres.values, mres.gaps):
@@ -136,19 +158,31 @@ def run_research(
             if mres.showcase_url:
                 sp.media["matterportUrl"] = mres.showcase_url
         info: dict[str, Any] = {"id": sp.property_id, "costarId": sp.costar_id,
-                                "name": sp.name or f"CoStar {sp.costar_id}", "address": sp.address or ""}
+                                "name": sp.name or f"CoStar property {sp.costar_id}",
+                                "address": sp.address or "Address not recorded"}
         if sp.lat is not None and sp.lon is not None:
             info["lat"], info["lng"] = sp.lat, sp.lon
+        missing: dict[str, str] = {}
         if rec.get("building_class") is not None:
             info["propertyClass"] = str(rec.get("building_class"))
-        if rec.get("occupancy_pct") is not None:
-            info["occupancyPct"] = rec.get("occupancy_pct")
+        else:
+            missing["propertyClass"] = (rec.gaps.get("building_class") or _NO_FIELD).reason
+        occ = sp.values.get("occupancy_pct")
+        if occ is not None:
+            info["occupancyPct"] = occ.value
+        else:
+            g = sp.gaps.get("occupancy_pct")
+            missing["occupancyPct"] = g.reason if g else "occupancy was not requested for this study"
+        if not sp.name:
+            missing["name"] = "no building name recorded; showing the CoStar property id"
+        if profile == "extended" and missing:
+            info["missing"] = missing  # proposed contract field: explicit missing-data states
         info.update(sp.media)
         if "lat" not in info:
             warnings.append(f"{sp.property_id}: no coordinates in kit; kept in dataset, not sent to the map")
             continue
         w.property_added(info)
-        for var in kit_vars | mp_index_vars:
+        for var in kit_vars | mp_index_vars | tenancy_vars:
             if var in sp.values:
                 w.cell(sp.property_id, sp.values[var])
     todos.set("t-kit", "done")
@@ -202,8 +236,9 @@ def run_research(
         for var in derived_vars:
             opt = plan.variables[var].option
             assert opt is not None
-            num, den = opt.requires.partition(":")[2].split(",")
-            item = derive_ratio(var, sp.values.get(num) or sp.gaps.get(num), sp.values.get(den) or sp.gaps.get(den))
+            num, den, scale = parse_derived(opt.requires)
+            item = derive_ratio(var, sp.values.get(num) or sp.gaps.get(num), sp.values.get(den) or sp.gaps.get(den),
+                                scale=scale, unit=VARIABLES[var].unit or "ratio")
             sp.set(item)
         for var, vp in plan.variables.items():
             if vp.status == "requires_interview" and var not in sp.values:

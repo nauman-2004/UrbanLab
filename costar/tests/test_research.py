@@ -65,11 +65,14 @@ def test_plan_flags_budget_and_blocked_live() -> None:
     assert blocked.requests["vexcel"] == 0
 
 
-def test_princeton_has_vexcel_but_no_property_sample() -> None:
-    spec = ResearchSpec.from_dict({**synthetic.DEMO_SPEC, "region": "princeton"})
-    plan = plan_research(spec, caps())
-    assert not plan.ok and "No property sample source" in plan.errors[0]
-    assert "Matterport models exist only" in json.dumps(plan.variables["matterport_model_count"].to_dict())
+def test_only_houston_and_los_angeles_are_accepted() -> None:
+    for region in ("princeton", "northern_california", "florida_panhandle", "chicago"):
+        with pytest.raises(SpecError, match="houston"):
+            ResearchSpec.from_dict({**synthetic.DEMO_SPEC, "region": region})
+    assert ResearchSpec.from_dict({**synthetic.DEMO_SPEC, "region": "los_angeles"}).region == "los_angeles"
+    from urbanlab_costar.research import spec_json_schema
+
+    assert spec_json_schema()["properties"]["region"]["enum"] == ["houston", "los_angeles"]
 
 
 def test_filters_must_be_on_mapped_kit_fields() -> None:

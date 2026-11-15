@@ -23,14 +23,17 @@ from .config import Settings, load_settings
 from .events import Profile
 from .research.planner import plan_research
 from .research.pipeline import run_research
-from .research.spec import ResearchSpec, SpecError, spec_json_schema
+from .research.spec import SUPPORTED_REGIONS, ResearchSpec, SpecError, spec_json_schema
 from .research.variables import VARIABLES
 from .runtime import Mode, build_runtime
 
 
-def research_spec_schema() -> dict[str, Any]:
-    """JSON Schema of the research spec the agent must produce from the user's question."""
-    return spec_json_schema()
+def research_spec_schema(mode: Mode = "synthetic", settings: Settings | None = None) -> dict[str, Any]:
+    """JSON Schema of the research spec the agent must produce from the user's question.
+    Includes every catalog variable plus any extra field mapped in the local kit field map."""
+    settings = settings or load_settings()
+    with build_runtime(settings, mode) as rt:
+        return spec_json_schema(rt.capabilities.kit_fields)
 
 
 def describe_capabilities(mode: Mode = "synthetic", settings: Settings | None = None) -> dict[str, Any]:
@@ -41,6 +44,7 @@ def describe_capabilities(mode: Mode = "synthetic", settings: Settings | None = 
             "mode": mode,
             "capabilities": rt.capabilities.to_dict(),
             "problems": rt.problems,
+            "regions": list(SUPPORTED_REGIONS),
             "variables": {
                 k: {"label": v.label, "unit": v.unit, "frontend_key": v.frontend_key,
                     "sources": [{"source": o.source.value, "method": o.method.value, "requires": o.requires,
@@ -55,11 +59,11 @@ def plan_research_tool(spec: dict[str, Any], mode: Mode = "synthetic",
                        settings: Settings | None = None) -> dict[str, Any]:
     """Validate a spec and return the research plan (sources, gaps, request estimate). Makes no requests."""
     settings = settings or load_settings()
-    try:
-        rs = ResearchSpec.from_dict(spec)
-    except SpecError as e:
-        return {"ok": False, "errors": e.errors}
     with build_runtime(settings, mode) as rt:
+        try:
+            rs = ResearchSpec.from_dict(spec, rt.capabilities.kit_fields)
+        except SpecError as e:
+            return {"ok": False, "errors": e.errors, "problems": rt.problems}
         plan = plan_research(rs, rt.capabilities, max_properties=settings.max_properties)
         out = plan.to_dict()
         out["problems"] = rt.problems
@@ -72,11 +76,11 @@ def run_research_tool(spec: dict[str, Any], mode: Mode = "synthetic", *, approve
     """Run a study. In ``real`` mode with live requests planned, ``approved_live_requests`` must be True
     (the human approval step); budgets and live flags in the root .env still apply."""
     settings = settings or load_settings()
-    try:
-        rs = ResearchSpec.from_dict(spec)
-    except SpecError as e:
-        return {"ok": False, "errors": e.errors}
     with build_runtime(settings, mode) as rt:
+        try:
+            rs = ResearchSpec.from_dict(spec, rt.capabilities.kit_fields)
+        except SpecError as e:
+            return {"ok": False, "errors": e.errors, "problems": rt.problems}
         plan = plan_research(rs, rt.capabilities, max_properties=settings.max_properties)
         if not plan.ok or rt.adapters is None:
             return {"ok": False, "errors": plan.errors + rt.problems, "plan": plan.to_dict()}

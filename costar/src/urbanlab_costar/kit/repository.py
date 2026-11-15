@@ -14,20 +14,24 @@ from typing import Any
 from .. import geo
 from ..provenance import EvidenceRef, Gap, GapKind, Method, Source, Value
 from .archive import KitArchive
-from .mapping import UNIT_FACTORS_TO_SF, DatasetMapping, FieldMap, MappingError, first_present
+from .mapping import UNIT_FACTORS_TO_SF, DatasetMapping, Extracted, FieldMap, MappingError, extract, get_path
 
 NUMERIC_FIELDS = {
     "lat", "lon", "year_built", "building_area_sf", "land_area_sf", "parking_spaces",
     "garage_stalls", "parking_ratio", "occupancy_pct", "vacancy_pct", "stories",
 }
 INT_FIELDS = {"year_built", "parking_spaces", "garage_stalls", "stories"}
-AREA_FIELDS = {"building_area_sf", "land_area_sf"}
 TEXT_FIELDS = {"name", "address", "city", "state", "property_type", "building_class"}
+YEAR_FIELDS = {"year_built", "year_renovated"}
+
+
+def is_area_field(name: str) -> bool:
+    return name.endswith("_sf")
 
 
 def normalize_id(v: Any) -> str | None:
     """Make identifiers comparable across datasets: '00123 ', 123, 123.0 -> '123'."""
-    if v is None:
+    if v is None or isinstance(v, bool):
         return None
     if isinstance(v, float) and v.is_integer():
         v = int(v)
@@ -77,6 +81,7 @@ class PropertyFilter:
     ranges: Mapping[str, tuple[float | None, float | None]] = field(default_factory=dict)
     require: tuple[str, ...] = ()
     limit: int = 25
+    ids: tuple[str, ...] = ()
 
 
 class PropertyRepository:
@@ -86,8 +91,21 @@ class PropertyRepository:
         self.kit = kit
         self.field_map = field_map
         self._indexes: dict[tuple[str, str], dict[str, list[dict[str, Any]]]] = {}
+        self._enums: dict[str, dict[str, str]] | None = None
+        self.last_match_count = 0
 
     # ---------------------------------------------------------------- raw
+    @property
+    def enums(self) -> dict[str, dict[str, str]]:
+        if self._enums is None:
+            self._enums = {}
+            if self.field_map.enums_member:
+                raw = self.kit.read_json(self.field_map.enums_member)
+                if isinstance(raw, dict):
+                    self._enums = {str(k): {str(c): str(n) for c, n in v.items()}
+                                   for k, v in raw.items() if isinstance(v, dict)}
+        return self._enums
+
     def _dataset(self, name: str) -> DatasetMapping:
         ds = self.field_map.get(name)
         if ds is None:
@@ -105,8 +123,6 @@ class PropertyRepository:
             else:
                 obj = self.kit.read_json(member)
                 if ds.records_path:
-                    from .mapping import get_path
-
                     obj = get_path(obj, ds.records_path) or []
                 it = iter(obj if isinstance(obj, list) else [obj])
             for rec in it:
@@ -115,18 +131,25 @@ class PropertyRepository:
                 if max_records is not None and n >= max_records:
                     return
 
+    def _extract_all(self, rec: Any, ds: DatasetMapping) -> dict[str, Extracted]:
+        out: dict[str, Extracted] = {}
+        for k, spec in ds.fields.items():
+            if spec.configured:
+                ex = extract(rec, spec, self.enums)
+                if ex is not None:
+                    out[k] = ex
+        return out
+
     def records(self, name: str, max_records: int | None = None) -> Iterator[dict[str, Any]]:
-        """Records as ``{"_id": ..., <canonical field>: value}`` (unmapped fields absent)."""
+        """Records as ``{"_id": ..., <canonical field>: value}`` (missing fields absent)."""
         ds = self._dataset(name)
         for rec in self.iter_raw(name, max_records):
-            rid = normalize_id(first_present(rec, (ds.id,))[0])
+            rid = normalize_id(get_path(rec, ds.id))
             if rid is None:
                 continue
             out: dict[str, Any] = {"_id": rid}
-            for k, paths in ds.fields.items():
-                v, _ = first_present(rec, paths)
-                if v is not None:
-                    out[k] = v
+            for k, ex in self._extract_all(rec, ds).items():
+                out[k] = ex.value
             yield out
 
     def lookup(self, name: str, field_name: str, key: Any) -> list[dict[str, Any]]:
@@ -149,38 +172,60 @@ class PropertyRepository:
     def available_fields(self) -> frozenset[str]:
         return self.field_map.property_fields()
 
-    def _to_property(self, rec: Mapping[str, Any], ds: DatasetMapping) -> PropertyRecord:
-        pr = PropertyRecord(kit_id=str(rec["_id"]), dataset=ds.name)
-        ref = f"CoStar kit · {ds.name} · {pr.kit_id}"
-        for name, paths in ds.fields.items():
-            if not paths:
+    def _value(self, name: str, ex: Extracted, ds: DatasetMapping, ref: str) -> Value | Gap:
+        raw = ex.value
+        notes = [n for n in [ex.note] if n]
+        spec = ds.fields[name]
+        numeric = name in NUMERIC_FIELDS or spec.kind in {"number", "integer"} or is_area_field(name)
+        value: Any = raw
+        unit = None
+        if numeric:
+            num = _to_number(raw)
+            if num is None:
+                return Gap(name, GapKind.ERROR, "value in record is not numeric", Source.COSTAR)
+            src_unit = ex.unit or ds.units.get(name)
+            if is_area_field(name):
+                unit = "sf"
+                if src_unit and src_unit not in {"sf", "sqft"}:
+                    num *= UNIT_FACTORS_TO_SF[src_unit]
+                    notes.append(f"converted from {src_unit} to sq ft")
+            if name in INT_FIELDS or spec.kind == "integer" or name in YEAR_FIELDS:
+                value = int(round(num))
+            else:
+                value = round(num, 2) if is_area_field(name) else num
+            if name in YEAR_FIELDS and not (1700 <= value <= 2100):
+                return Gap(name, GapKind.ERROR, f"implausible year {value}", Source.COSTAR)
+            if name.endswith("_pct") and not (0 <= value <= 100):
+                return Gap(name, GapKind.ERROR, f"recorded percentage {value} is outside 0-100", Source.COSTAR)
+        elif name in TEXT_FIELDS or spec.kind == "text":
+            value = str(raw).strip()
+        elif spec.kind == "bool":
+            if not isinstance(raw, bool):
+                return Gap(name, GapKind.ERROR, "value in record is not true/false", Source.COSTAR)
+        return Value(
+            variable=name, value=value, source=Source.COSTAR,
+            method=Method.COMPUTED if ex.aggregated else Method.OBSERVED, unit=unit,
+            evidence=EvidenceRef(ref=ref, note="; ".join(notes) or None),
+        )
+
+    def _to_property(self, rec: Any, ds: DatasetMapping, rid: str) -> PropertyRecord:
+        pr = PropertyRecord(kit_id=rid, dataset=ds.name)
+        ref = f"CoStar kit · {ds.name} · {rid}"
+        extracted = self._extract_all(rec, ds)
+        for name, spec in ds.fields.items():
+            if not spec.configured:
                 pr.gaps[name] = Gap(name, GapKind.NOT_MAPPED, "field not mapped in local field map", Source.COSTAR)
                 continue
-            raw = rec.get(name)
-            if raw is None:
-                pr.gaps[name] = Gap(name, GapKind.MISSING_IN_RECORD, "empty in the CoStar record", Source.COSTAR)
+            ex = extracted.get(name)
+            if ex is None:
+                pr.gaps[name] = Gap(name, GapKind.MISSING_IN_RECORD, "not recorded in the CoStar record",
+                                    Source.COSTAR)
                 continue
-            note = None
-            value: Any = raw
-            if name in NUMERIC_FIELDS:
-                num = _to_number(raw)
-                if num is None:
-                    pr.gaps[name] = Gap(name, GapKind.ERROR, "value in record is not numeric", Source.COSTAR)
-                    continue
-                unit = ds.units.get(name)
-                if name in AREA_FIELDS and unit and unit not in {"sf", "sqft"}:
-                    num *= UNIT_FACTORS_TO_SF[unit]
-                    note = f"converted from {unit} to sq ft"
-                value = int(round(num)) if name in INT_FIELDS else num
-                if name == "year_built" and not (1700 <= value <= 2100):
-                    pr.gaps[name] = Gap(name, GapKind.ERROR, f"implausible year {value}", Source.COSTAR)
-                    continue
-            elif name in TEXT_FIELDS:
-                value = str(raw).strip()
-            pr.values[name] = Value(
-                variable=name, value=value, source=Source.COSTAR, method=Method.OBSERVED,
-                unit="sf" if name in AREA_FIELDS else None, evidence=EvidenceRef(ref=ref, note=note),
-            )
+            item = self._value(name, ex, ds, ref)
+            if isinstance(item, Value):
+                pr.values[name] = item
+            else:
+                pr.gaps[name] = item
         return pr
 
     def properties(self, flt: PropertyFilter) -> list[PropertyRecord]:
@@ -194,33 +239,43 @@ class PropertyRepository:
         region = geo.REGIONS.get(flt.region) if flt.region else None
         if flt.region and region is None:
             raise ValueError(f"unknown region {flt.region!r}")
-        if region and not ({"lat", "lon"} <= mapped or "city" in mapped):
-            raise MappingError("cannot filter by region: map lat/lon or city")
+        region_values = self.field_map.regions.get(flt.region or "") if flt.region else None
+        rfield = self.field_map.region_field
+        if region and region_values is None and not ({"lat", "lon"} <= mapped or "city" in mapped):
+            raise MappingError("cannot filter by region: map [regions] market ids, lat/lon or city")
         wanted_types = [t.lower() for t in flt.property_types]
         seen: set[str] = set()
-        picked: list[PropertyRecord] = []
-        for rec in sorted(self.records(self.PROPERTY_DATASET), key=lambda r: str(r["_id"])):
-            if rec["_id"] in seen:
+        wanted_ids = {normalize_id(i) for i in flt.ids} - {None}
+        matched: list[PropertyRecord] = []
+        # Stream: each raw record is reduced to its small PropertyRecord immediately.
+        for rec in self.iter_raw(self.PROPERTY_DATASET):
+            rid = normalize_id(get_path(rec, ds.id))
+            if rid is None or rid in seen:
                 continue  # duplicate ids across files: keep the first
-            pr = self._to_property(rec, ds)
-            if region and not self._in_region(pr, region):
+            seen.add(rid)
+            if wanted_ids and rid not in wanted_ids:
+                continue
+            pr = self._to_property(rec, ds, rid)
+            if region and not self._in_region(pr, region, region_values, rfield):
                 continue
             if wanted_types:
                 pt = str(pr.get("property_type") or "").lower()
-                if not any(t in pt for t in wanted_types):
+                if not any(t == pt or t in pt for t in wanted_types):
                     continue
             if not self._in_ranges(pr, flt.ranges):
                 continue
             if any(r not in pr.values for r in flt.require):
                 continue
-            seen.add(rec["_id"])
-            picked.append(pr)
-            if len(picked) >= flt.limit:
-                break
-        return picked
+            matched.append(pr)
+        matched.sort(key=lambda p: (len(p.kit_id), p.kit_id))  # deterministic sample
+        self.last_match_count = len(matched)
+        return matched[: flt.limit]
 
     @staticmethod
-    def _in_region(pr: PropertyRecord, region: geo.Region) -> bool:
+    def _in_region(pr: PropertyRecord, region: geo.Region, region_values: frozenset[str] | None,
+                   rfield: str) -> bool:
+        if region_values is not None:
+            return normalize_id(pr.get(rfield)) in region_values
         ll = pr.latlon
         if ll is not None:
             return region.bbox.contains(*ll)

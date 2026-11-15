@@ -209,6 +209,8 @@ class EventWriter:
 
     def property_added(self, info: dict[str, Any]) -> None:
         missing = [k for k in PROPERTY_REQUIRED if k not in info]
+        if self.profile == "strict" and "missing" in info:
+            raise ValueError("PropertyInfo.missing is only allowed in the extended profile")
         if missing:
             self.contract_warnings.append(
                 f"{info.get('id')}: PropertyInfo fields not available from data and left out (not invented): {missing}"

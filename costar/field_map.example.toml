@@ -10,8 +10,21 @@
 # 2. Copy the draft to costar/.local/field_map.toml and fill in the paths.
 # 3. Any field left empty becomes an explicit "not_mapped" gap; nothing is guessed.
 #
-# Values: a dotted path ("a.b.0.c") or a list of candidate paths (first non-empty wins).
+# Values: a dotted path ("a.b.0.c") or a list of candidate paths (first non-empty wins),
+# or a rule table (see src/urbanlab_costar/kit/mapping.py), for example:
+#   field = { path = "<path>", enum = "<EnumName>", skip_values = [<unknown code>] }
+#   field = { list = "<list path>", where_field = "<item field>", where_in = [<codes>], take = "<item field>", agg = "min" }
+#   field = { path = "<path>", unit_path = "<unit code path>", unit_map = { "<code>" = "acres", "<code>" = "sf" } }
+#   field = { join = ["<path>", "<path>"] }
 # Values starting with "<" are treated as unfilled placeholders.
+
+[kit]
+enums = "<member holding integer-enum lookups, if the kit has one>"
+
+[regions]
+field = "market_id"         # canonical field compared against the ids below
+houston = ["<market id>"]
+los_angeles = ["<market id>"]
 
 [datasets.commercial_property]
 members = "<glob of member files, e.g. folder/*.json>"
@@ -26,6 +39,7 @@ city = "<path>"
 state = "<path>"
 lat = "<path>"
 lon = "<path>"
+market_id = "<path>"
 property_type = "<path>"
 building_class = "<path>"
 year_built = "<path>"
@@ -41,6 +55,16 @@ stories = "<path>"
 [datasets.commercial_property.units]
 land_area_sf = "sf"        # sf | acres | m2 (converted to sq ft)
 building_area_sf = "sf"
+
+# Optional: property -> Matterport model links shipped with the kit.
+[datasets.matterport_links]
+members = "<member>"
+format = "csv"
+id = "<property id column>"
+
+[datasets.matterport_links.fields]
+property_id = "<property id column>"
+model_id = "<model id column>"
 
 # Other kit datasets can be added the same way and used with
 # PropertyRepository.records() / .lookup() for joins, e.g.:

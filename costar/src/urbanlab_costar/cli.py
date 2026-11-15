@@ -5,6 +5,7 @@
   plan          plan a spec (JSON file) without making requests
   run           run a spec; live requests need --approve-live AND the .env switches
   kit-inspect   summarize the local CoStar kit schema (local terminal only)
+  kit-validate  fill rates of the local field map per region / property type
   purge         delete sponsor data + derivatives (dry run unless --yes)
 """
 
@@ -125,6 +126,40 @@ def _kit_inspect(args: argparse.Namespace) -> int:
     return 0
 
 
+def _kit_validate(args: argparse.Namespace) -> int:
+    """Aggregate fill rates of every mapped field per region and property type (no record values)."""
+    if not args.confirm_local_access:
+        print("Reading the CoStar kit needs explicit approval. Re-run with --confirm-local-access.")
+        return 2
+    from collections import Counter, defaultdict
+
+    from .kit import KitArchive, PropertyFilter, PropertyRecord, PropertyRepository, load_field_map
+    from .research.spec import SUPPORTED_REGIONS
+
+    s = load_settings()
+    if s.costar_kit_zip is None:
+        print("COSTAR_KIT_ZIP is not set")
+        return 1
+    fm = load_field_map(s.costar_field_map)
+    fields = sorted(fm.property_fields())
+    with KitArchive(s.costar_kit_zip, s.costar_zip_password) as kit:
+        repo = PropertyRepository(kit, fm)
+        for region in SUPPORTED_REGIONS:
+            props = repo.properties(PropertyFilter(region=region, limit=10**7))
+            by_type: dict[str, list[PropertyRecord]] = defaultdict(list)
+            for p in props:
+                by_type[str(p.get("property_type"))].append(p)
+            print(f"== {region}: {len(props)} properties")
+            for ptype, group in sorted(by_type.items(), key=lambda kv: -len(kv[1]))[: args.types]:
+                filled: Counter[str] = Counter()
+                for p in group:
+                    for f in fields:
+                        filled[f] += f in p.values
+                rates = ", ".join(f"{f}={filled[f] / len(group):.0%}" for f in fields)
+                print(f"   {ptype} (n={len(group)}): {rates}")
+    return 0
+
+
 def _purge(args: argparse.Namespace) -> int:
     from .purge import purge
 
@@ -163,6 +198,10 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("--write-draft", action="store_true")
     k.add_argument("--sample", type=int, default=25)
     k.set_defaults(fn=_kit_inspect)
+    v = sub.add_parser("kit-validate")
+    v.add_argument("--confirm-local-access", action="store_true")
+    v.add_argument("--types", type=int, default=6, help="property types per region to show")
+    v.set_defaults(fn=_kit_validate)
     g = sub.add_parser("purge")
     g.add_argument("--yes", action="store_true")
     g.add_argument("--include-sources", action="store_true", help="also delete the kit zip and models index")

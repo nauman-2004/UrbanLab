@@ -33,7 +33,14 @@ Nothing in this document has been run. Each step needs its own approval. Budgets
   ```bash
   python -m urbanlab_costar run --mode real --approve-live --spec spec-1.json
   ```
-  `spec-1.json` sets `sample_limit: 1` and the variables `land_area_sf`, `surface_parking_sf`. Keep it in `costar/.local/`.
+  `spec-1.json` targets one office through `property_ids` with `sample_limit: 1`. Its variables are:
+  - `land_area_sf` (CoStar-recorded lot size)
+  - `parcel_area_sf` (Vexcel polygon area)
+  - `footprint_sf`
+  - `surface_parking_sf` (Vexcel estimate)
+  - `parking_spaces_surface` (CoStar-reported count)
+
+  Keep the spec in `costar/.local/`. Set `URBANLAB_HTTP_TIMEOUT_S=180` for this run, because detection can take a while and a timeout with retries at 0 still uses up the request.
 - **Report:**
   - observed field presence
   - the parcel area versus the kit's land area

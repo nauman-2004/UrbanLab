@@ -4,14 +4,17 @@ This package provides reusable, provenance-aware adapters for the HackPrinceton 
 
 It is a library and CLI for the agent backend (Deep Agents) to call. It does **not** contain an agent, an LLM call or a voice pipeline.
 
-> **Status.** Everything has only been tested offline against **synthetic** fixtures. No real sponsor data has been read and no authenticated request has been made. Real field mappings are unverified until the kit is opened with approval (see [Live test plan](docs/LIVE_TEST_PLAN.md)).
+> **Status.**
+> - **CoStar kit adapter:** validated locally against the real kit. It was opened with approval, with fill rates checked and joins verified.
+> - **Vexcel and Matterport API adapters:** tested only against synthetic fixtures. No authenticated request has been made (see [Live test plan](docs/LIVE_TEST_PLAN.md)).
+> - **Unit tests:** use synthetic data only.
 
 ## Quick start (offline, no keys needed)
 
 ```bash
 cd costar
 python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest              # 65 offline tests; network is blocked in tests
+.venv/bin/python -m pytest              # 82 offline tests; network is blocked in tests
 .venv/bin/mypy                          # strict type check
 .venv/bin/python -m urbanlab_costar demo            # synthetic Houston parking study
 .venv/bin/python -m urbanlab_costar demo --events   # same, as StudyEvent JSON lines
@@ -131,9 +134,14 @@ The agent still owns approval, interviews, `analysis.started` and `report.ready`
 
 ```bash
 python -m urbanlab_costar kit-inspect --confirm-local-access --write-draft   # local terminal only
-cp costar/.local/field_map.draft.toml costar/.local/field_map.toml           # then fill in paths
+cp costar/.local/field_map.draft.toml costar/.local/field_map.toml           # then fill in rules
+python -m urbanlab_costar kit-validate --confirm-local-access                # fill rates per region/type
 python -m urbanlab_costar plan --mode real
 ```
+
+Field rules can decode integer enums with the kit's own enum file, filter and aggregate lists (for example a construction-complete year, or summed surface spaces), apply a unit recorded per record, and join address parts. A sum or count over a list is recorded as `computed`. Regions are selected by the kit's market ids, set under `[regions]` in the local map. Every catalog variable whose kit field is mapped becomes available. **Any other mapped field also becomes a usable variable** (with an `observed` value), so research questions aren't limited to the catalog.
+
+**Regions:** research specs accept **only `houston` and `los_angeles`**, the CoStar kit's coverage. Other Vexcel geofence areas are rejected at the spec level, in the JSON schema and in the planner.
 
 The inspection output is the sponsor's confidential schema. It goes to the local terminal and the git-ignored `costar/.local/` folder only. The kit is read in place, as a stream; nothing is extracted to disk. AES-encrypted zips need the `aes` extra (`pyzipper`).
 
@@ -153,7 +161,11 @@ Also delete manually:
 
 ## Known limitations
 
-- Real kit member names and field paths are **unknown** until the kit is opened. The adapter is schema-agnostic through the field map, but the commercial-property path has only been tested on a synthetic schema.
+- The real field map lives only in `costar/.local/`, so each teammate creates their own. Ask the CoStar owner for a copy over a private channel; never use git for it.
+- **Occupancy** is the *recorded tenant occupancy*: occupied SF of current tenancies divided by RBA, on the kit snapshot date (`[kit] as_of`). It's only reported when every current tenancy has an area and the result is at most 100%. It is **not** a vacancy rate.
+- **Vacancy** is only what the kit records (apartment communities). Office vacancy isn't derived from tenancies, following the kit's guidance.
+- Listings and sale comps aren't joined yet.
+- The kit has no explicit garage-stall field. Covered spaces are exposed as `parking_spaces_covered`, but they're **not** treated as `garage_stalls`.
 - The geofence boxes are approximate pre-checks. The provider's response is authoritative.
 - Surface parking is a bounding-box union of SAM3 detections, so it overstates irregular lots. The more precise mask-based polygons aren't implemented yet. Plan a manual spot-check before quoting numbers.
 - `land_area_sf` from Vexcel is the parcel polygon area computed with a local planar projection, accurate at parcel scale.
