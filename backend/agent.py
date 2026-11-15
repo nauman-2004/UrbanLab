@@ -36,6 +36,8 @@ SUBAGENTS = [
             "Include the survey variables when the outcome (e.g. EV charging) can't be seen in records or imagery.\n"
             f"{_CATALOG}\n"
             f"- sample: city, property_type as CoStar names it (e.g. 'Office'), n (default {config.DEFAULT_SAMPLE_N}).\n"
+            "  The CoStar data covers only Houston and Los Angeles. If the question is about another city, "
+            "do not substitute one: reply that it can't be studied with the available data and do not submit a plan.\n"
             "If submit_plan returns status 'invalid', fix the errors and resubmit. If the reviewer rejects it, revise per "
             "their message and resubmit. When approved, reply with the approved plan JSON and nothing else."
         ),

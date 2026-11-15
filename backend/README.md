@@ -126,10 +126,23 @@ backend/
 
 Only the stub function bodies change. Tools, events and the dataset stay the same.
 
-**CoStar**: `integrations.costar_fetch_properties(city, property_type, limit)`
-- Call the CoStar API and return a list of dicts with these keys: `costar_id, name, address, city, property_type, lat, lng, year_built, rba_sf, lot_sf, building_class, occupancy_pct, parking_spaces, parking_ratio`.
-- Use `None` for anything CoStar doesn't have. Never fill in defaults; `None` becomes a missing cell with a reason.
-- Put credentials in `.env` and read them in `config.py`.
+**CoStar** (connected): `integrations.costar_fetch_properties(city, property_type, limit)` reads the sponsor's
+CoStar data kit through the [`costar/`](../costar/README.md) package (`urbanlab_costar`, an editable dependency).
+`URBANLAB_COSTAR_SOURCE` in the root `.env` picks the source:
+
+| Value | Source |
+|---|---|
+| `auto` (default) | the kit if `COSTAR_KIT_ZIP` is set, otherwise the sample CSV |
+| `kit` | the kit only; a study fails with a clear error if it isn't configured |
+| `synthetic` | the package's invented test kit, so the whole path can be tested without sponsor data |
+| `sample` | `data/costar_sample.csv` |
+
+- To use the real kit, set `COSTAR_KIT_ZIP` and `COSTAR_ZIP_PASSWORD` and create the local field map; see `costar/README.md`.
+  The kit is read straight from the zip, and kit records are never written to the demo cache.
+- The sample is a seeded random draw from every matching property (`URBANLAB_SAMPLE_SEED`), not the lowest ids.
+- Only Houston and Los Angeles have kit data, so the planner and `validate_plan` refuse other cities rather than substitute one.
+- A field the kit doesn't have becomes a missing cell with the kit's reason, for example "not in the CoStar field map".
+- `get_costar_properties` returns which source it used, and the analysis flags sample and synthetic records as limitations.
 
 **Vexcel**: `integrations.vexcel_fetch_tile(lat, lng) -> Path`
 - Request the ortho tile centred on the point and save it as `config.TILES_DIR / tile_name(lat, lng)`.

@@ -70,6 +70,24 @@ def test_range_filter_and_limit(repo: PropertyRepository) -> None:
     assert len(repo.properties(PropertyFilter(region="houston", limit=3))) == 3
 
 
+def test_seeded_sample_is_random_reproducible_and_sorted(repo: PropertyRepository) -> None:
+    every = [p.kit_id for p in repo.properties(PropertyFilter(region="houston", property_types=("office",), limit=50))]
+    first = [p.kit_id for p in repo.properties(PropertyFilter(region="houston", property_types=("office",), limit=4))]
+    assert first == every[:4]  # no seed: unchanged behaviour (lowest ids)
+
+    def draw(seed: int) -> list[str]:
+        return [p.kit_id for p in repo.properties(PropertyFilter(region="houston", property_types=("office",),
+                                                                 limit=4, seed=seed))]
+
+    a = draw(7)
+    assert a == draw(7)  # reproducible
+    assert len(a) == 4 and set(a) <= set(every) and a == sorted(a, key=lambda i: (len(i), i))
+    assert any(draw(s) != first for s in range(10))  # not just the lowest ids
+    # Asking for more than exist returns all of them, same as without a seed.
+    all_seeded = repo.properties(PropertyFilter(region="houston", property_types=("office",), limit=50, seed=3))
+    assert [p.kit_id for p in all_seeded] == every
+
+
 def test_filter_on_unmapped_field_fails_loudly(repo: PropertyRepository) -> None:
     with pytest.raises(MappingError):
         repo.properties(PropertyFilter(ranges={"garage_stalls": (1, None)}))

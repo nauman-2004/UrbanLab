@@ -3,3 +3,5 @@ __pycache__/
 data/dataset.json
 data/cache/*.json
 data/studies/
+# Live Vexcel imagery (sponsor data): never commit
+data/tiles/live/

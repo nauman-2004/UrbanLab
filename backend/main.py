@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 import config
 import events
+import integrations
 import runner
 from agent import build_agent
 from dataset import get_store, has_store
@@ -64,7 +65,11 @@ def _study(study_id: str) -> runner.Study:
 
 @app.get("/health")
 def health():
-    return {"ok": True, "model": config.MODEL, "demo_mode": config.DEMO_MODE}
+    try:
+        costar = integrations.costar_source()
+    except integrations.CoStarError as e:
+        costar = f"misconfigured: {e}"
+    return {"ok": True, "model": config.MODEL, "demo_mode": config.DEMO_MODE, "costar_source": costar}
 
 
 @app.post("/studies")

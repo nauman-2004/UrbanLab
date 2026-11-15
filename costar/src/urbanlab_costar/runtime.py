@@ -93,10 +93,11 @@ def _synthetic(settings: Settings) -> Runtime:
                                          RequestBudget("matterport", 1000, 1000.0), max_retries=0))
     repo = PropertyRepository(kit, fmap)
     links = matterport_links(repo)
+    joins, join_reasons = _kit_joins(repo)
     caps = Capabilities(kit_ready=True, kit_fields=fmap.property_fields(), vexcel="offline",
                         vexcel_reason="synthetic fixtures", matterport_index=True, matterport_api="offline",
                         matterport_reason="synthetic fixtures", budgets={"vexcel": 0, "matterport": 0},
-                        max_retries=0, kit_joins=_kit_joins(repo)[0], kit_join_reasons=_kit_joins(repo)[1])
+                        max_retries=0, kit_joins=joins, kit_join_reasons=join_reasons)
     return Runtime("synthetic", Adapters(repo, VexcelAdapter(vexcel), MatterportAdapter(index, mclient, links)),
                    caps, _stack=stack)
 

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { cellKey, type StudyState } from "@/lib/state/reducer";
 import { useStudy } from "@/lib/state/StudyProvider";
+import type { Building } from "@/lib/types";
 
 /**
  * Offline SVG map of the sample, projected from WGS84 lat/lng and fitted to
@@ -53,7 +54,10 @@ export function StudyMap({ activeId }: { activeId: string | null }) {
   const { state, select } = useStudy();
 
   const pins = useMemo(() => {
-    const bs = state.order.map((id) => state.buildings[id]).filter((b) => Number.isFinite(b?.lat) && Number.isFinite(b?.lng));
+    // Buildings without coordinates stay in the dataset but can't be placed on the map.
+    const bs = state.order
+      .map((id) => state.buildings[id])
+      .filter((b): b is Building & { lat: number; lng: number } => b?.lat != null && b?.lng != null && Number.isFinite(b.lat) && Number.isFinite(b.lng));
     const project = projector(bs);
     return bs.map((b) => ({ id: b.building_id, b, ...project(b), st: buildingState(state, b.building_id) }));
   }, [state]);

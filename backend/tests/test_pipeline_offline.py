@@ -113,12 +113,22 @@ def tmp_data(tmp_path, monkeypatch):
     return install_fakes(tmp_path, monkeypatch)
 
 
-def install_fakes(tmp_path, monkeypatch):
-    """Point data paths at tmp_path and replace the LLM vision/extraction calls with fakes."""
+def install_fakes(tmp_path, monkeypatch, costar_source: str | None = "sample"):
+    """Point data paths at tmp_path and replace the LLM vision/extraction calls with fakes.
+
+    costar_source: tests pin the sample CSV (its coordinates match the bundled tiles), whatever .env says;
+    None keeps URBANLAB_COSTAR_SOURCE from .env (the fake dev server).
+    """
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     monkeypatch.setattr(config, "DATASET_JSON", tmp_path / "dataset.json")
     monkeypatch.setattr(config, "CACHE_DIR", tmp_path / "cache")
     monkeypatch.setattr(config, "DEMO_MODE", False)
+    if costar_source is not None:
+        monkeypatch.setattr(config, "COSTAR_SOURCE", costar_source)
+    # Offline means offline: never send live Vexcel requests from tests or the fake server, whatever .env says.
+    import integrations
+
+    monkeypatch.setattr(integrations, "vexcel_live_status", lambda: (False, "disabled in offline/test mode"))
     import llm
 
     def fake_measure(path):

@@ -6,6 +6,7 @@ explicit :class:`~urbanlab_costar.provenance.Gap` rather than a default.
 
 from __future__ import annotations
 
+import random
 from collections import defaultdict
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
@@ -82,6 +83,9 @@ class PropertyFilter:
     require: tuple[str, ...] = ()
     limit: int = 25
     ids: tuple[str, ...] = ()
+    # None: the first ``limit`` matches by id (deterministic, but biased toward low ids).
+    # An int: a reproducible random sample of ``limit`` from ALL matches, so no id range is favored.
+    seed: int | None = None
 
 
 class PropertyRepository:
@@ -267,8 +271,13 @@ class PropertyRepository:
             if any(r not in pr.values for r in flt.require):
                 continue
             matched.append(pr)
-        matched.sort(key=lambda p: (len(p.kit_id), p.kit_id))  # deterministic sample
+        def by_id(p: PropertyRecord) -> tuple[int, str]:
+            return (len(p.kit_id), p.kit_id)
+
+        matched.sort(key=by_id)  # deterministic order before any sampling
         self.last_match_count = len(matched)
+        if flt.seed is not None and len(matched) > flt.limit:
+            return sorted(random.Random(flt.seed).sample(matched, flt.limit), key=by_id)
         return matched[: flt.limit]
 
     @staticmethod

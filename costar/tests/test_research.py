@@ -105,6 +105,9 @@ def test_every_event_satisfies_strict_contract(result: Any) -> None:
             assert e["propertyId"] in seen
 
 
+@pytest.mark.skip(reason="The frontend now consumes the agent backend's events (backend/events.py, "
+                         "frontend/src/lib/events.ts). urbanlab_costar.events targets the earlier StudyEvent "
+                         "format and is only used by this package's CLI demo; the backend calls the data adapters.")
 def test_contract_constants_match_frontend_source() -> None:
     types_ts = (FRONTEND / "types.ts").read_text()
     events_ts = (FRONTEND / "events.ts").read_text()
