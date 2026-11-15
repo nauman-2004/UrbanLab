@@ -214,6 +214,7 @@ def get_aerial_tile(lat: float, lng: float) -> str:
         return _json({"building_id": bid, "error": str(e)})
     if bid:
         store.buildings[bid]["aerial_tile"] = str(path)
+        events.emit(store.study_id, "building_updated", {"building_id": bid, "aerial_url": f"/tiles/{path.name}"})
     return _json({"building_id": bid, "image_path": str(path)})
 
 

@@ -3,12 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs live",
+    "dev:fake": "node scripts/dev.mjs fake",
+    "dev:demo": "node scripts/dev.mjs demo",
+    "dev:web": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@next/env": "16.4.6",
     "next": "16.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0"

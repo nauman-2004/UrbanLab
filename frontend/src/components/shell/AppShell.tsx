@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { STUDY } from "@/lib/data/houston";
 import { useStudy } from "@/lib/state/StudyProvider";
 import { Icon, type IconName } from "../ui/Icon";
 import { IntegrationBar } from "./IntegrationBar";
@@ -16,8 +15,9 @@ const NAV: { href: string; label: string; icon: IconName }[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { start, status } = useStudy();
+  const { state } = useStudy();
   const title = pathname.startsWith("/findings") ? "Findings Report" : "Research Workspace";
+  const sample = state.plan?.sample;
 
   return (
     <div className="flex min-h-dvh xl:h-dvh">
@@ -46,7 +46,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col xl:min-h-0">
         <header className="flex flex-wrap items-center gap-x-3.5 gap-y-2 px-4 pt-3 pb-2 md:px-5">
           <h1 className="text-lg font-bold tracking-tight">{title}</h1>
-          <span className="hidden text-xs text-dim sm:inline">/ Houston office parking · {STUDY.id}</span>
+          {(state.studyId || sample) && (
+            <span className="hidden text-xs text-dim sm:inline">
+              / {sample ? `${sample.city} · ${sample.property_type} · n=${sample.n}` : "planning"}
+              {state.studyId && ` · ${state.studyId}`}
+            </span>
+          )}
           <div className="flex-1" />
           <nav aria-label="Views" className="flex gap-1.5">
             {NAV.map((n) => {
@@ -63,13 +68,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
-          <button
-            type="button"
-            onClick={start}
-            className="inline-flex items-center gap-1.5 rounded-[9px] bg-gradient-to-br from-accent to-violet-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-white shadow-[0_6px_18px_#7c3aed44] hover:brightness-110"
-          >
-            {status === "idle" ? "＋ New Research" : "↻ Restart study"}
-          </button>
         </header>
 
         <div className="px-4 md:px-4">

@@ -19,6 +19,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import config
@@ -31,6 +32,8 @@ logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="UrbanLab agent backend")
 app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_methods=["*"], allow_headers=["*"])
+# Aerial tiles, so the UI can show the image the vision model measured (building_updated.aerial_url).
+app.mount("/tiles", StaticFiles(directory=config.TILES_DIR, check_dir=False), name="tiles")
 
 _agent = None
 
@@ -71,6 +74,7 @@ async def create_study(body: CreateStudy):
     get_store(sid)
     study = runner.Study(id=sid, question=body.question)
     runner.STUDIES[sid] = study
+    events.emit(sid, "study_started", {"question": body.question})
     study.task = asyncio.create_task(runner.run_study(study, agent()))
     return {"study_id": sid}
 

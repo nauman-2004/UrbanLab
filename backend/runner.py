@@ -101,6 +101,8 @@ async def run_study(study: Study, agent) -> None:
     cfg = {"configurable": {"thread_id": sid, "study_id": sid}, "recursion_limit": 300}
     inp: Any = {"messages": [{"role": "user", "content": study.question}]}
     open_steps: dict[str, str] = {}  # task tool_call_id -> subagent name
+    seen_tool_calls: set[str] = set()  # subagent tool calls already emitted
+    approval_round = 0
 
     try:
         while True:
@@ -113,7 +115,14 @@ async def run_study(study: Study, agent) -> None:
                     for it in data["__interrupt__"]:
                         interrupts[it.id] = it
                     continue
-                if ns:  # only the orchestrator's own messages drive step events
+                if ns:  # subagent: surface its tool calls; only the orchestrator drives step events
+                    step = next(reversed(open_steps.values()), None)
+                    for m in _iter_messages(data):
+                        if isinstance(m, AIMessage):
+                            for tc in m.tool_calls or []:
+                                if tc.get("id") and tc["id"] not in seen_tool_calls:
+                                    seen_tool_calls.add(tc["id"])
+                                    events.emit(sid, "tool_called", {"step": step, "name": tc["name"], "args": tc.get("args", {})})
                     continue
                 for m in _iter_messages(data):
                     if isinstance(m, AIMessage):
@@ -135,6 +144,8 @@ async def run_study(study: Study, agent) -> None:
             study.status = "awaiting_approval"
             loop = asyncio.get_running_loop()
             per_interrupt: dict[str, list[PendingAction]] = {}
+            approval_round += 1  # every action in one pause shares a round, so the UI can show them together
+            round_size = sum(len((it.value or {}).get("action_requests", [])) for it in interrupts.values())
             for iid, it in interrupts.items():
                 value = it.value or {}
                 configs = {c["action_name"]: c for c in value.get("review_configs", [])}
@@ -151,6 +162,8 @@ async def run_study(study: Study, agent) -> None:
                         "args": req.get("args", {}),
                         "description": req.get("description", ""),
                         "allowed_decisions": allowed,
+                        "round": approval_round,
+                        "round_size": round_size,
                     })
             resume: dict[str, Any] = {}
             for iid, actions in per_interrupt.items():

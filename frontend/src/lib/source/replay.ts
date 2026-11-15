@@ -1,26 +1,53 @@
-import type { StudyCommand, StudyEvent } from "../events";
-import { phaseOne, phaseTwo, type Timed } from "../replay/script";
+import type { ApprovalDecision, StudyEvent } from "../events";
+import recorded from "../replay/recorded-study.json";
 import type { SourceListener, SourceStatus, StudySource } from "./types";
 
+interface Timed {
+  at: number;
+  event: StudyEvent;
+}
+
+/** Real gaps between events are compressed so a recorded study plays in well under a minute. */
+const MIN_GAP_MS = 140;
+const MAX_GAP_MS = 1400;
+
+function timeline(events: StudyEvent[]): Timed[] {
+  let at = 0;
+  return events.map((event, i) => {
+    if (i > 0) {
+      const dt = (event.ts - events[i - 1].ts) * 1000;
+      at += Math.min(MAX_GAP_MS, Math.max(MIN_GAP_MS, dt));
+    }
+    return { at, event };
+  });
+}
+
 /**
- * Plays the deterministic replay script on a virtual clock that supports
- * pause / resume / speed changes. Stops at `approval.requested` until the
- * researcher answers, exactly like a Deep Agents interrupt.
+ * Offline demo: plays a recorded backend event stream (`replay/recorded-study.json`,
+ * written by `backend/scripts/record_replay.py`) on a virtual clock with
+ * pause / resume / speed. It stops at each approval, like a Deep Agents
+ * interrupt, and continues with the recorded run once the researcher approves.
  */
 export class ReplaySource implements StudySource {
   readonly kind = "replay" as const;
-  private queue: Timed[] = [];
+  private queue: Timed[] = timeline(recorded as unknown as StudyEvent[]);
   private i = 0;
   private vt = 0; // virtual ms at `wallStart`
   private wallStart = 0;
   private speed = 1;
   private status: SourceStatus = "idle";
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private waitingFor = new Set<string>();
 
   constructor(private listener: SourceListener) {}
 
   now(): number {
     return this.status === "playing" ? this.vt + (performance.now() - this.wallStart) * this.speed : this.vt;
+  }
+
+  /** Recorded tiles are bundled under /replay/tiles (copied from backend/data/tiles). */
+  resolveUrl(path: string): string | null {
+    return path.startsWith("/tiles/") ? `/replay${path}` : null;
   }
 
   private setStatus(s: SourceStatus) {
@@ -30,9 +57,9 @@ export class ReplaySource implements StudySource {
 
   start(): void {
     this.stop();
-    this.queue = phaseOne();
     this.i = 0;
     this.vt = 0;
+    this.waitingFor.clear();
     this.setStatus("playing");
     this.wallStart = performance.now();
     this.schedule();
@@ -51,34 +78,32 @@ export class ReplaySource implements StudySource {
   }
 
   private fire() {
-    // Emit every event that is due (several can share a timestamp). The clock
-    // keeps running continuously, so a late timer (e.g. a throttled tab)
-    // catches up by emitting a burst instead of drifting.
     while (this.i < this.queue.length && this.queue[this.i].at <= this.now() + 1) {
       const { at, event } = this.queue[this.i++];
       this.listener.onEvent(event, at);
-      if (event.type === "approval.requested") {
-        // Freeze the clock at the interrupt until the researcher answers.
+      if (event.type === "approval_required") this.waitingFor.add(event.data.action_id);
+      // Pause once the whole round of approvals has been raised.
+      const nextEv = this.queue[this.i]?.event;
+      if (this.waitingFor.size && nextEv?.type !== "approval_required") {
         this.vt = at;
         this.setStatus("awaiting");
+        return;
+      }
+      if (event.type === "study_completed" || event.type === "study_failed") {
+        this.vt = at;
+        this.setStatus("done");
         return;
       }
     }
     this.schedule();
   }
 
-  send(command: StudyCommand): void {
-    if (command.type === "approval.respond" && this.status === "awaiting") {
-      const base = this.vt;
-      this.queue = phaseTwo(command.approved, base).map((t) => ({ at: t.at + base, event: t.event }));
-      this.i = 0;
+  async answer(decisions: ApprovalDecision[]): Promise<void> {
+    for (const d of decisions) this.waitingFor.delete(d.action_id);
+    if (this.status === "awaiting" && this.waitingFor.size === 0) {
       this.wallStart = performance.now();
       this.setStatus("playing");
       this.schedule();
-    }
-    if (command.type === "cell.verify") {
-      const ev: StudyEvent = { type: "cell.verified", propertyId: command.propertyId, variable: command.variable, evidenceRef: command.evidenceRef };
-      this.listener.onEvent(ev, this.now());
     }
   }
 

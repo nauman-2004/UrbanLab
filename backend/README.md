@@ -17,6 +17,9 @@ Demo question: *"How prepared are commercial office properties in Houston for EV
 
 ## Run it
 
+Easiest: `cd frontend && npm run dev` starts this backend and the UI together (see `frontend/README.md`).
+To run the backend on its own:
+
 ```bash
 cd backend
 uv sync                                        # Python 3.11 venv + deps (uv installs 3.11 if needed)
@@ -61,11 +64,15 @@ Every event has the shape `{type, study_id, seq, ts, data}`:
 
 | type | data |
 |---|---|
+| `study_started` | `{question}` |
 | `step_started` / `step_done` | `{step: subagent name, step_id, description \| summary}` |
+| `tool_called` | `{step, name, args}`: a tool call made by a subagent |
 | `plan_ready` | `{plan: {hypothesis, variables:[{name, source, type, label}], sample:{city, property_type, n}}}` |
+| `building_added` | `{building: {building_id, costar_id, name, address, city, property_type, lat, lng}}` |
+| `building_updated` | `{building_id, aerial_url}`: tile served at `GET /tiles/{file}` |
 | `cell_updated` | `{cell}` (see Dataset) |
 | `gap_detected` | `{building_id, variable, source, reason}` |
-| `approval_required` | `{action_id, kind: "plan"\|"survey", tool, args, description, allowed_decisions}` |
+| `approval_required` | `{action_id, kind: "plan"\|"survey", tool, args, description, allowed_decisions, round, round_size}`; actions from one pause share `round` |
 | `call_transcript` | `{building_id, call_id, contact_role, consent, transcript:[{speaker, text, t}], duration_s, stub}` |
 | `findings_ready` | `{findings[], effects[], by_decade[], chart_spec (Vega-Lite), limitations[], era_cutoff, n_buildings}` |
 | `study_completed` / `study_failed` | `{summary}` / `{error}` (added so clients know when to stop listening) |

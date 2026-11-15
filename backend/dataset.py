@@ -74,6 +74,7 @@ class DatasetStore:
             self.buildings[building_id] = {"building_id": building_id, **meta}
             self._ensure_cells(building_id)
             self._persist()
+        events.emit(self.study_id, "building_added", {"building": self.buildings[building_id]})
 
     def _ensure_cells(self, building_id: str) -> None:
         for v in self.planned_variables():

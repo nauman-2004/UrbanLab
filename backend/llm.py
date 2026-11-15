@@ -7,9 +7,16 @@ import mimetypes
 from functools import lru_cache
 from pathlib import Path
 from langchain.chat_models import init_chat_model
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 import config
+
+_NULL_STRINGS = {"", "none", "null", "n/a", "na", "unknown"}
+
+
+def _null_string_to_none(v):
+    """Some models write null as the string "None"/"null"; treat that as a real null."""
+    return None if isinstance(v, str) and v.strip().lower() in _NULL_STRINGS else v
 
 
 class ParkingMeasurement(BaseModel):
@@ -20,6 +27,8 @@ class ParkingMeasurement(BaseModel):
     confidence: float = Field(ge=0, le=1, description="Your confidence in these measurements, 0-1.")
     notes: str = Field(description="One sentence on what you saw and any caveats (occlusion, garage, image quality).")
 
+    _nulls = field_validator("est_spaces", "surface_parking_pct", mode="before")(_null_string_to_none)
+
 
 class ExtractedAnswer(BaseModel):
     variable: str = Field(description="Target variable name, exactly as given.")
@@ -27,6 +36,8 @@ class ExtractedAnswer(BaseModel):
     confidence: float = Field(ge=0, le=1)
     quote: str | None = Field(description="The contact's exact words supporting the value; null if unanswered.")
     t: float | None = Field(description="Timestamp (s) of the quoted contact turn.")
+
+    _nulls = field_validator("value", "quote", "t", mode="before")(_null_string_to_none)
 
 
 class TranscriptExtraction(BaseModel):
