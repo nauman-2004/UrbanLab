@@ -139,3 +139,58 @@ def test_property_ids_filter_and_parcel_area(isolated: Path) -> None:
     assert prop["values"]["parcel_area_sf"]["source"] == "vexcel"
     assert prop["values"]["land_area_sf"]["source"] == "costar"
     assert out["requests_used"]["vexcel"] == 2  # one parcel lookup + one detection
+
+
+# ---------------------------------------------------------- geographic scope
+
+from urbanlab_costar.research.spec import resolve_region  # noqa: E402
+
+
+@pytest.mark.parametrize("question,region", [
+    ("Do older offices in Houston have more surface parking?", "houston"),
+    ("Which Harris County industrial buildings are newest?", "houston"),
+    ("How old are apartment buildings in Los Angeles?", "los_angeles"),
+    ("Vacancy of LA apartments by class", "los_angeles"),
+    ("What about L.A. offices?", "los_angeles"),
+])
+def test_resolve_supported_city(question: str, region: str) -> None:
+    r = resolve_region(question)
+    assert r["ok"] and r["region"] == region
+
+
+@pytest.mark.parametrize("question,needle", [
+    ("Office vacancy in Chicago", "does not name a supported city"),
+    ("Parking at Princeton office parks", "Princeton, NJ is not supported"),
+    ("San Francisco apartments by age", "Northern California is not supported"),
+    ("Compare Houston and Los Angeles offices", "both Houston and Los Angeles"),
+    ("la vida en la ciudad", "does not name a supported city"),  # lowercase 'la' is not LA
+])
+def test_unsupported_or_ambiguous_city_is_explained_not_substituted(question: str, needle: str) -> None:
+    r = resolve_region(question)
+    assert not r["ok"] and r["region"] is None and needle in r["message"]
+    assert r["supportedRegions"] == ["Houston, TX", "Los Angeles, CA"]
+
+
+def test_unsupported_region_emits_study_error(isolated: Path) -> None:
+    seen: list[dict[str, Any]] = []
+    out = run_research_tool({**synthetic.DEMO_SPEC, "region": "princeton"}, "synthetic", emit=seen.append,
+                            settings=make_settings(isolated))
+    assert not out["ok"] and seen and seen[0]["type"] == "study.error"
+    assert "Houston, TX and Los Angeles, CA only" in seen[0]["message"]
+    assert validate_event(seen[0]) == []
+
+
+def test_property_info_carries_recorded_city_state_type(isolated: Path) -> None:
+    out = run_research_tool(SPEC, "synthetic", settings=make_settings(isolated))
+    props = [e["property"] for e in out["events"] if e["type"] == "property.added"]
+    assert props and all(p["city"] == "Houston" and p["state"] == "TX" and p["propertyType"] == "Office" for p in props)
+
+
+def test_extended_plan_lists_every_requested_variable(isolated: Path) -> None:
+    spec = {**SPEC, "variables": ["year_built", "occupancy_pct", "vacancy_pct", "garage_stalls", "market_id"]}
+    out = run_research_tool(spec, "synthetic", settings=make_settings(isolated))  # extended is the default
+    plan = next(e["plan"] for e in out["events"] if e["type"] == "plan.updated")
+    assert [v["key"] for v in plan["variables"]] == ["yearBuilt", "occupancy_pct", "vacancy_pct", "garageStalls",
+                                                     "market_id"]
+    for e in out["events"]:
+        assert validate_event(e, "extended") == []

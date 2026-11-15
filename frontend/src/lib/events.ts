@@ -15,6 +15,7 @@
 import type {
   ApprovalRequest,
   Cell,
+  CellScalar,
   Gap,
   InterviewQuestion,
   PropertyInfo,
@@ -28,6 +29,11 @@ import type {
 export type StudyEvent =
   /** A new study begins. Resets client state. */
   | { type: "study.started"; studyId: string; question: string }
+  /**
+   * The backend cannot run the study, e.g. the question names a location outside
+   * the supported cities (Houston, TX and Los Angeles, CA). Shown verbatim to the user.
+   */
+  | { type: "study.error"; message: string; supportedRegions?: string[] }
   /** Planner output (Deep Agents: planning step). */
   | { type: "plan.updated"; plan: StudyPlan }
   /** Full todo list snapshot (Deep Agents: `write_todos`). */
@@ -42,7 +48,7 @@ export type StudyEvent =
   /** A building enters the sample (CoStar). */
   | { type: "property.added"; property: PropertyInfo }
   /** One value lands in the dataset. `cell.at` is ignored; the client stamps arrival time. */
-  | { type: "cell.filled"; propertyId: string; variable: VariableKey; cell: Omit<Cell, "at"> }
+  | { type: "cell.filled"; propertyId: string; variable: VariableKey; cell: Omit<Cell<CellScalar>, "at"> }
   /** A self-reported value was independently confirmed (or the UI did it manually). */
   | { type: "cell.verified"; propertyId: string; variable: VariableKey; evidenceRef: string }
   /** The agent determined a value cannot be observed from digital sources. */

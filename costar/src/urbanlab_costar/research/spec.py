@@ -14,6 +14,46 @@ from .variables import VARIABLES
 MAX_SAMPLE = 500
 # Research is limited to where the CoStar kit (the property sample) has data.
 SUPPORTED_REGIONS = tuple(sorted(geo.COVERAGE["costar"]))
+SUPPORTED_LABELS = [geo.REGIONS[r].label for r in SUPPORTED_REGIONS]
+UNSUPPORTED_MESSAGE = ("UrbanLab currently supports Houston, TX and Los Angeles, CA only, because the CoStar "
+                       "property data covers just those two markets.")
+
+_ALIASES: dict[str, tuple[str, ...]] = {
+    "houston": (r"\bhouston\b", r"\bharris county\b"),
+    "los_angeles": (r"\blos angeles\b", r"\bl\.a\.(?=\W|$)", r"\bLA\b", r"\bla county\b"),
+}
+# Places with sponsor imagery but no CoStar property sample: named so the user gets a precise reason.
+_IMAGERY_ONLY: dict[str, tuple[str, ...]] = {
+    "Princeton, NJ": (r"\bprinceton\b",),
+    "Northern California": (r"\bsan francisco\b", r"\boakland\b", r"\bsan jose\b", r"\bbay area\b",
+                            r"\bnorthern california\b", r"\bsacramento\b"),
+    "the Florida Panhandle": (r"\bpensacola\b", r"\btallahassee\b", r"\bpanama city\b", r"\bflorida panhandle\b"),
+}
+
+
+def resolve_region(text: str) -> dict[str, Any]:
+    """Find the supported city a question is about. Never substitutes a city that was not named.
+
+    Returns ``{"region": key | None, "ok": bool, "message": str, "supportedRegions": [...]}``.
+    """
+    import re
+
+    found = [k for k, pats in _ALIASES.items()
+             if any(re.search(p, text, 0 if p == r"\bLA\b" else re.I) for p in pats)]
+    other = [name for name, pats in _IMAGERY_ONLY.items() if any(re.search(p, text, re.I) for p in pats)]
+    base = {"supportedRegions": SUPPORTED_LABELS}
+    if len(found) == 1 and not other:
+        return {**base, "region": found[0], "ok": True, "message": f"Study area: {geo.REGIONS[found[0]].label}."}
+    if len(found) > 1:
+        return {**base, "region": None, "ok": False,
+                "message": "This question names both Houston and Los Angeles. A study covers one city at a time; "
+                           "run one study per city and compare the results."}
+    if other:
+        return {**base, "region": None, "ok": False,
+                "message": f"{other[0]} is not supported. {UNSUPPORTED_MESSAGE}"}
+    return {**base, "region": None, "ok": False,
+            "message": f"The question does not name a supported city. {UNSUPPORTED_MESSAGE} "
+                       "Please say which city the study is about."}
 
 
 class SpecError(ValueError):
@@ -42,7 +82,9 @@ class ResearchSpec:
             errors.append("question is required")
         region = str(d.get("region") or "").strip().lower()
         if region not in SUPPORTED_REGIONS:
-            errors.append(f"region must be one of {list(SUPPORTED_REGIONS)} (CoStar kit coverage)")
+            shown = region or "no region"
+            errors.append(f"'{shown}' is not a supported region (use one of {list(SUPPORTED_REGIONS)}). "
+                          f"{UNSUPPORTED_MESSAGE}")
         variables = tuple(dict.fromkeys(str(v) for v in d.get("variables") or []))
         if not variables:
             errors.append("at least one variable is required")

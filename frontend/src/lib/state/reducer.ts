@@ -29,6 +29,8 @@ export interface StudyState {
   analysisStarted: boolean;
   reportDraft: number | null;
   subagents: number;
+  /** Set when the backend refuses the study (e.g. unsupported location). Shown verbatim. */
+  error: { message: string; supportedRegions?: string[] } | null;
 }
 
 export const initialState: StudyState = {
@@ -49,6 +51,7 @@ export const initialState: StudyState = {
   analysisStarted: false,
   reportDraft: null,
   subagents: 0,
+  error: null,
 };
 
 export type StudyAction =
@@ -64,6 +67,9 @@ const VAR_LABEL: Record<string, string> = {
   garageStalls: "garage_stalls",
   offsiteSpaces: "offsite_spaces",
 };
+
+/** Log label for a variable; unknown (study-specific) variables are shown as-is. */
+export const varLabel = (key: string): string => VAR_LABEL[key] ?? key;
 
 function pushLog(s: StudyState, at: number, e: Omit<LogEntry, "id" | "at">): LogEntry[] {
   return [...s.log, { id: s.log.length + 1, at, ...e }];
@@ -83,6 +89,13 @@ export function studyReducer(s: StudyState, action: StudyAction): StudyState {
   switch (e.type) {
     case "study.started":
       return { ...initialState, studyId: e.studyId, question: e.question };
+
+    case "study.error":
+      return {
+        ...s,
+        error: { message: e.message, supportedRegions: e.supportedRegions },
+        log: pushLog(s, at, { kind: "info", text: "study not started", detail: e.message }),
+      };
 
     case "plan.updated":
       return { ...s, plan: e.plan };
@@ -133,7 +146,7 @@ export function studyReducer(s: StudyState, action: StudyAction): StudyState {
       if (e.cell.source === "interview") {
         next.log = pushLog(s, at, {
           kind: "cell",
-          text: `cell.filled ${e.propertyId}.${VAR_LABEL[e.variable]} = ${e.cell.value.toLocaleString()}`,
+          text: `cell.filled ${e.propertyId}.${varLabel(e.variable)} = ${String(e.cell.value)}`,
           detail: "self-reported · unverified",
         });
       }
@@ -160,7 +173,7 @@ export function studyReducer(s: StudyState, action: StudyAction): StudyState {
             },
           },
         },
-        log: pushLog(s, at, { kind: "cell", text: `cell.verified ${e.propertyId}.${VAR_LABEL[e.variable]}`, detail: e.evidenceRef }),
+        log: pushLog(s, at, { kind: "cell", text: `cell.verified ${e.propertyId}.${varLabel(e.variable)}`, detail: e.evidenceRef }),
       };
     }
 
@@ -170,7 +183,7 @@ export function studyReducer(s: StudyState, action: StudyAction): StudyState {
         gaps: [...s.gaps, { ...e.gap, status: "open" }],
         log: pushLog(s, at, {
           kind: "gap",
-          text: `gap ${VAR_LABEL[e.gap.variable]} · ${e.gap.propertyId}`,
+          text: `gap ${varLabel(e.gap.variable)} · ${e.gap.propertyId}`,
           detail: e.gap.reason,
         }),
       };
@@ -237,7 +250,7 @@ export function studyReducer(s: StudyState, action: StudyAction): StudyState {
         ...next,
         log: pushLog(next, at, {
           kind: "tool",
-          text: `extract(${VAR_LABEL[e.variable]})`,
+          text: `extract(${varLabel(e.variable)})`,
           detail: `→ ${e.value.toLocaleString()} · conf ${e.confidence.toFixed(2)}`,
           tag: "gemini",
         }),

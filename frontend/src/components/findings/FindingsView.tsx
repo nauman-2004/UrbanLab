@@ -8,6 +8,8 @@ import { fmtP } from "@/lib/stats";
 import { Card, CardHeader, Label } from "../ui/Card";
 import { Icon } from "../ui/Icon";
 import { SupplyBars, supplySegments } from "./SupplyBars";
+import { studyAreaLabel } from "../workspace/StudyMap";
+import { GenericFindings } from "./GenericFindings";
 import { SurfaceScatter } from "./SurfaceScatter";
 
 function Stat({ value, label, tone, warn }: { value: string; label: string; tone?: string; warn?: string }) {
@@ -36,6 +38,13 @@ export function FindingsView() {
     );
   }
 
+  // The parking analysis applies only to the parking template with measured surface areas;
+  // any other question (or a parking study without Vexcel values yet) gets a descriptive summary.
+  const keys = state.plan?.variables.map((v) => v.key) ?? [];
+  const parking = !state.plan || (["yearBuilt", "surfaceSf"].every((k) => keys.includes(k)) &&
+    state.order.some((id) => state.rows[id].cells.surfaceSf));
+  if (!parking) return <GenericFindings />;
+  const area = studyAreaLabel(state.order.map((id) => state.rows[id].info));
   const f = computeFindings(state);
   const final = state.reportDraft != null;
   const pre = supplySegments(f.rows.filter((r) => r.era === "pre"), state.rows);
@@ -76,7 +85,7 @@ export function FindingsView() {
             ● {f.verdict.label.toUpperCase()}
           </span>
           <h2 className="mb-4 text-xl leading-snug font-bold tracking-tight sm:text-2xl">
-            Pre-1980 Houston offices devote <span className="text-vexcel">{fmt.dec(f.surface.multiple, 1)}× more of their lot</span> to surface parking
+            Pre-1980 {area ? `${area} ` : ""}buildings devote <span className="text-vexcel">{fmt.dec(f.surface.multiple, 1)}× more of their lot</span> to surface parking
             {similar ? (
               <>
                 , but once off-site leases are counted, <span className="text-voice">total parking supply is about the same</span>. Older buildings spread
@@ -119,7 +128,7 @@ export function FindingsView() {
               <span className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-voice/15 font-bold text-voice">↻</span>
               <p className="text-soft">
                 <b className="text-voice">The interviews changed the conclusion.</b> Without them, {biggest.name} would appear to have only{" "}
-                <span className="font-mono">{fmt.dec(biggest.without)}</span> stalls per 1k sf, implausibly low for a downtown office tower. {ivCount} interviews found{" "}
+                <span className="font-mono">{fmt.dec(biggest.without)}</span> stalls per 1k sf, implausibly low for an office building of that size. {ivCount} interviews found{" "}
                 <span className="font-mono">{fmt.int(ivSpaces)}</span> off-site leased spaces that no digital source recorded
                 {f.nUnverified > 0 && <span className="text-unverified"> ({f.nUnverified} still unverified)</span>}.{" "}
                 {f.interviewImpact.map((x) => (
@@ -160,7 +169,7 @@ export function FindingsView() {
           <div>
             <Label>Method</Label>
             <ol className="space-y-1 text-soft">
-              <li><span className="mr-2 font-mono text-dim">01</span>Sampled {f.nTotal} CBD offices ({f.surface.nPre} pre-1980 / {f.surface.nPost} post-2000)</li>
+              <li><span className="mr-2 font-mono text-dim">01</span>Sampled {f.nTotal} properties{area ? ` in ${area}` : ""} ({f.surface.nPre} pre-1980 / {f.surface.nPost} post-2000)</li>
               <li><span className="mr-2 font-mono text-dim">02</span>Surface ratio = segmented surface lot ÷ CoStar lot area</li>
               <li><span className="mr-2 font-mono text-dim">03</span>Supply = surface (320 sf/stall) + garage + off-site, per 1k sf RBA</li>
               <li><span className="mr-2 font-mono text-dim">04</span>Spearman rank correlation; exact Mann-Whitney U</li>
@@ -169,7 +178,7 @@ export function FindingsView() {
           <div>
             <Label>Limitations</Label>
             <ul className="space-y-1.5">
-              <Lim b={`Small pilot (n=${f.nTotal}).`}>CBD only, so it may not hold for suburban offices.</Lim>
+              <Lim b={`Small pilot (n=${f.nTotal}).`}>Limited to the sampled area and property type, so it may not hold elsewhere.</Lim>
               {inferred > 0 && <Lim b={`${inferred} buildings have no 3D scan.`}>Their garage counts are inferred from CoStar parking notes.</Lim>}
               {f.nUnverified > 0 && (
                 <Lim b={`${f.nUnverified} values are self-reported and unverified.`} warn>
@@ -183,7 +192,7 @@ export function FindingsView() {
           </div>
           <div>
             <Label>Suggested follow-up</Label>
-            <p className="text-soft">Verify the off-site counts against lease documents, expand to about 60 buildings across Houston and LA, and add assessed land value as a control.</p>
+            <p className="text-soft">Verify the off-site counts against lease documents, expand the sample within the supported areas (Houston, TX and Los Angeles, CA), and add assessed land value as a control.</p>
           </div>
           <div className="mt-auto flex flex-wrap gap-2 pt-1">
             <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-[9px] bg-gradient-to-br from-accent to-violet-600 px-3 py-1.5 text-[12.5px] font-semibold text-white">

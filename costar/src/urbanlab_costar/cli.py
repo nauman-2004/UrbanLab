@@ -180,7 +180,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("doctor").set_defaults(fn=_doctor)
     d = sub.add_parser("demo")
     d.add_argument("--events", action="store_true", help="print events as JSON lines")
-    d.add_argument("--profile", choices=["strict", "extended"], default="strict")
+    d.add_argument("--profile", choices=["strict", "extended"], default="extended")
     d.add_argument("--csv", help="write the synthetic dataset as CSV to this path")
     d.set_defaults(fn=_demo)
     p = sub.add_parser("plan")

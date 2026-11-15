@@ -94,7 +94,7 @@ def run_research(
     warnings = list(plan.warnings)
     w.study_started(study_id, spec.question)
     w.stage("plan")
-    w.plan_updated(study_plan_event_payload(plan))
+    w.plan_updated(study_plan_event_payload(plan, profile))
 
     kit_vars = plan.chosen("kit:")
     vexcel_vars = plan.chosen("vexcel:")
@@ -162,6 +162,9 @@ def run_research(
                                 "address": sp.address or "Address not recorded"}
         if sp.lat is not None and sp.lon is not None:
             info["lat"], info["lng"] = sp.lat, sp.lon
+        for key, field_name in (("city", "city"), ("state", "state"), ("propertyType", "property_type")):
+            if rec.get(field_name):
+                info[key] = str(rec.get(field_name))
         missing: dict[str, str] = {}
         if rec.get("building_class") is not None:
             info["propertyClass"] = str(rec.get("building_class"))

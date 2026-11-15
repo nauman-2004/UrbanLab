@@ -18,7 +18,8 @@ interface StudyContextValue {
   clock: number;
   selectedId: string | null;
   drawerOpen: boolean;
-  start(): void;
+  /** Start a study. In live mode `question` is the user's own research question. */
+  start(question?: string): void;
   togglePause(): void;
   setSpeed(n: number): void;
   respondApproval(approved: boolean): void;
@@ -62,11 +63,12 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [status]);
 
-  const start = useCallback(() => {
+  const start = useCallback((question?: string) => {
     dispatch({ type: "reset" });
     setSelectedId(null);
     setDrawerOpen(false);
-    sourceRef.current?.start(STUDY.question);
+    // The replay is a fixed synthetic script; live mode sends the user's question to the backend.
+    sourceRef.current?.start(SOURCE_KIND === "live" && question?.trim() ? question.trim() : STUDY.question);
   }, []);
 
   const togglePause = useCallback(() => {

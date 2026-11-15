@@ -40,7 +40,7 @@ const b = (
     Partial<Pick<PropertyInfo, "propertyClass" | "occupancyPct">>,
   d: Omit<SyntheticBuilding, "info">,
 ): SyntheticBuilding => ({
-  info: { propertyClass: "A", occupancyPct: 85, ...info },
+  info: { propertyClass: "A", occupancyPct: 85, city: "Houston", state: "TX", propertyType: "Office", ...info },
   ...d,
 });
 

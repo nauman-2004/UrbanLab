@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useStudy } from "@/lib/state/StudyProvider";
-import type { Cell, VariableKey } from "@/lib/types";
+import type { Cell, CellScalar, VariableKey } from "@/lib/types";
 import { VerificationBadge } from "../ui/Provenance";
 
 const EVIDENCE = ["Parking lease agreement", "Parking operator invoice", "Site visit / permit count"];
@@ -12,7 +12,7 @@ const EVIDENCE = ["Parking lease agreement", "Parking operator invoice", "Site v
  * researcher records independent evidence. This control is the only way to
  * change that status (in live mode it sends a `cell.verify` command).
  */
-export function VerifyControl({ propertyId, variable, cell }: { propertyId: string; variable: VariableKey; cell: Cell }) {
+export function VerifyControl({ propertyId, variable, cell }: { propertyId: string; variable: VariableKey; cell: Cell<CellScalar> }) {
   const { verify } = useStudy();
   const [open, setOpen] = useState(false);
   const [choice, setChoice] = useState(EVIDENCE[0]);

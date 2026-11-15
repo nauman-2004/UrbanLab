@@ -29,7 +29,16 @@ export class LiveSource implements StudySource {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
       });
-      if (!res.ok) throw new Error(`POST /studies → ${res.status}`);
+      if (!res.ok) {
+        // The backend explains refusals (e.g. an unsupported city) in the body; show it verbatim.
+        const body = (await res.json().catch(() => null)) as { message?: string; supportedRegions?: string[] } | null;
+        if (body?.message) {
+          this.listener.onEvent({ type: "study.error", message: body.message, supportedRegions: body.supportedRegions }, 0);
+          this.listener.onStatus("error");
+          return;
+        }
+        throw new Error(`POST /studies → ${res.status}`);
+      }
       const { studyId } = (await res.json()) as { studyId: string };
       this.studyId = studyId;
       this.t0 = performance.now();
@@ -40,6 +49,10 @@ export class LiveSource implements StudySource {
         this.listener.onEvent(event, this.now());
         if (event.type === "approval.requested") this.listener.onStatus("awaiting");
         if (event.type === "report.ready") this.listener.onStatus("done");
+        if (event.type === "study.error") {
+          this.listener.onStatus("error");
+          this.stop();
+        }
       };
       this.es.onerror = () => this.listener.onStatus("error");
     } catch (err) {

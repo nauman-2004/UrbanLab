@@ -23,7 +23,7 @@ from .config import Settings, load_settings
 from .events import Profile
 from .research.planner import plan_research
 from .research.pipeline import run_research
-from .research.spec import SUPPORTED_REGIONS, ResearchSpec, SpecError, spec_json_schema
+from .research.spec import SUPPORTED_LABELS, SUPPORTED_REGIONS, ResearchSpec, SpecError, resolve_region, spec_json_schema
 from .research.variables import VARIABLES
 from .runtime import Mode, build_runtime
 
@@ -34,6 +34,12 @@ def research_spec_schema(mode: Mode = "synthetic", settings: Settings | None = N
     settings = settings or load_settings()
     with build_runtime(settings, mode) as rt:
         return spec_json_schema(rt.capabilities.kit_fields)
+
+
+def resolve_region_tool(question: str) -> dict[str, Any]:
+    """Which supported city a natural-language question is about (Houston or Los Angeles only).
+    If ``ok`` is false, show ``message`` to the user (as a ``study.error`` event) instead of guessing."""
+    return resolve_region(question)
 
 
 def describe_capabilities(mode: Mode = "synthetic", settings: Settings | None = None) -> dict[str, Any]:
@@ -71,7 +77,7 @@ def plan_research_tool(spec: dict[str, Any], mode: Mode = "synthetic",
 
 
 def run_research_tool(spec: dict[str, Any], mode: Mode = "synthetic", *, approved_live_requests: bool = False,
-                      emit: Callable[[dict[str, Any]], None] | None = None, profile: Profile = "strict",
+                      emit: Callable[[dict[str, Any]], None] | None = None, profile: Profile = "extended",
                       finalize: bool = False, settings: Settings | None = None) -> dict[str, Any]:
     """Run a study. In ``real`` mode with live requests planned, ``approved_live_requests`` must be True
     (the human approval step); budgets and live flags in the root .env still apply."""
@@ -80,7 +86,10 @@ def run_research_tool(spec: dict[str, Any], mode: Mode = "synthetic", *, approve
         try:
             rs = ResearchSpec.from_dict(spec, rt.capabilities.kit_fields)
         except SpecError as e:
-            return {"ok": False, "errors": e.errors, "problems": rt.problems}
+            event = {"type": "study.error", "message": " ".join(e.errors), "supportedRegions": SUPPORTED_LABELS}
+            if emit:
+                emit(event)
+            return {"ok": False, "errors": e.errors, "problems": rt.problems, "events": [event]}
         plan = plan_research(rs, rt.capabilities, max_properties=settings.max_properties)
         if not plan.ok or rt.adapters is None:
             return {"ok": False, "errors": plan.errors + rt.problems, "plan": plan.to_dict()}

@@ -8,13 +8,15 @@ import { DatasetTable } from "./DatasetTable";
 import { InterviewDrawer } from "./InterviewDrawer";
 import { PropertyPanel } from "./PropertyPanel";
 import { ResearchPlan } from "./ResearchPlan";
-import { StudyMap } from "./StudyMap";
+import { StudyMap, studyAreaLabel } from "./StudyMap";
 
 export function Workspace() {
   const { state, selectedId } = useStudy();
   // The panel follows the agent's latest activity until the user picks a building.
   const activeId = selectedId ?? state.focusId ?? state.order[0] ?? null;
   const row = activeId ? state.rows[activeId] ?? null : null;
+  const area = studyAreaLabel(state.order.map((id) => state.rows[id].info)) || "Study area";
+  const n = state.order.length;
 
   return (
     <>
@@ -25,7 +27,7 @@ export function Workspace() {
 
         <div className="order-1 xl:order-none xl:min-h-0">
           <Card className="h-full">
-            <CardHeader icon="pin" title={`Houston CBD · ${state.order.length || 12} buildings`} aside="select a building to inspect all layers" />
+            <CardHeader icon="pin" title={`${area} · ${n} ${n === 1 ? "property" : "properties"}`} aside="select a property to inspect all layers" />
             <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
               <div className="flex h-[300px] xl:h-auto xl:flex-1">
                 <StudyMap activeId={activeId} />

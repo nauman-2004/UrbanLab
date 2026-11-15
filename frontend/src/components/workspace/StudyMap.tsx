@@ -2,21 +2,53 @@
 
 import { useMemo } from "react";
 import { useStudy } from "@/lib/state/StudyProvider";
-import type { PropertyRow } from "@/lib/types";
+import type { PropertyInfo, PropertyRow } from "@/lib/types";
 
 /**
  * Offline SVG map of the study area, projected from WGS84 lat/lng.
+ * The synthetic replay uses a stylized downtown-Houston backdrop; any other sample
+ * (Houston or Los Angeles, any property type) gets a neutral grid fitted to its pins.
  * Swap for MapLibre/Mapbox later by keeping the same props: rows, selected id, onSelect.
  */
-const BBOX = { minLat: 29.7533, maxLat: 29.7634, minLng: -95.3735, maxLng: -95.3602 };
+const DEMO_BBOX = { minLat: 29.7533, maxLat: 29.7634, minLng: -95.3735, maxLng: -95.3602 };
 const W = 1000;
-const COS = Math.cos((29.758 * Math.PI) / 180);
-const H = Math.round((W * (BBOX.maxLat - BBOX.minLat)) / ((BBOX.maxLng - BBOX.minLng) * COS));
 
-export const project = (lat: number, lng: number) => ({
-  x: ((lng - BBOX.minLng) / (BBOX.maxLng - BBOX.minLng)) * W,
-  y: ((BBOX.maxLat - lat) / (BBOX.maxLat - BBOX.minLat)) * H,
+interface Frame {
+  bbox: typeof DEMO_BBOX;
+  h: number;
+  demo: boolean;
+}
+
+function frameFor(points: { lat: number; lng: number }[]): Frame {
+  const inDemo = points.length > 0 && points.every((p) =>
+    p.lat >= DEMO_BBOX.minLat && p.lat <= DEMO_BBOX.maxLat && p.lng >= DEMO_BBOX.minLng && p.lng <= DEMO_BBOX.maxLng);
+  let bbox = DEMO_BBOX;
+  if (points.length > 0 && !inDemo) {
+    const lats = points.map((p) => p.lat);
+    const lngs = points.map((p) => p.lng);
+    const pad = (a: number, b: number) => Math.max((b - a) * 0.08, 0.004);
+    const [la0, la1, lo0, lo1] = [Math.min(...lats), Math.max(...lats), Math.min(...lngs), Math.max(...lngs)];
+    bbox = { minLat: la0 - pad(la0, la1), maxLat: la1 + pad(la0, la1), minLng: lo0 - pad(lo0, lo1), maxLng: lo1 + pad(lo0, lo1) };
+  }
+  const cos = Math.cos((((bbox.minLat + bbox.maxLat) / 2) * Math.PI) / 180);
+  const h = Math.min(1400, Math.max(320, Math.round((W * (bbox.maxLat - bbox.minLat)) / ((bbox.maxLng - bbox.minLng) * cos))));
+  return { bbox, h, demo: points.length === 0 || inDemo };
+}
+
+const projectIn = (f: Frame, lat: number, lng: number) => ({
+  x: ((lng - f.bbox.minLng) / (f.bbox.maxLng - f.bbox.minLng)) * W,
+  y: ((f.bbox.maxLat - lat) / (f.bbox.maxLat - f.bbox.minLat)) * f.h,
 });
+
+/** Projection of the synthetic demo frame (kept for callers that place markers on the demo map). */
+export const project = (lat: number, lng: number) => projectIn(frameFor([]), lat, lng);
+
+/** "Houston, TX" / "Los Angeles, CA" / both, from the recorded cities of the sampled properties. */
+export function studyAreaLabel(infos: PropertyInfo[]): string {
+  const places = [...new Set(infos.filter((i) => i.city).map((i) => (i.state ? `${i.city}, ${i.state}` : i.city!)))];
+  if (places.length === 0) return "";
+  return places.length <= 2 ? places.join(" · ") : `${places.slice(0, 2).join(" · ")} +${places.length - 2}`;
+}
 
 type PinState = "pending" | "observed" | "gap" | "collecting" | "interview";
 
@@ -40,22 +72,26 @@ const FILL: Record<PinState, string> = {
 export function StudyMap({ activeId }: { activeId: string | null }) {
   const { state, select } = useStudy();
 
+  const frame = useMemo(() => frameFor(state.order.map((id) => state.rows[id].info)), [state.order, state.rows]);
+  const H = frame.h;
   const pins = useMemo(
     () =>
       state.order.map((id) => {
         const row = state.rows[id];
-        const gap = state.gaps.find((g) => g.propertyId === id);
-        return { id, row, ...project(row.info.lat, row.info.lng), st: pinState(row, gap?.status) };
+        const gap = state.gaps.find((g) => g.propertyId === id && g.status !== "filled");
+        return { id, row, ...projectIn(frame, row.info.lat, row.info.lng), st: pinState(row, gap?.status) };
       }),
-    [state.order, state.rows, state.gaps],
+    [state.order, state.rows, state.gaps, frame],
   );
+  const area = studyAreaLabel(state.order.map((id) => state.rows[id].info));
 
-  // Downtown Houston's street grid is rotated ~36° from north.
+  // Demo backdrop: downtown Houston's street grid is rotated ~36° from north.
   const streets = Array.from({ length: 34 }, (_, i) => -900 + i * 58);
+  const grid = Array.from({ length: 11 }, (_, i) => i / 10);
 
   return (
     <div className="relative min-h-[260px] flex-1 overflow-hidden bg-[#0c1028]">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 size-full" role="img" aria-label={`Map of ${pins.length} sampled buildings in downtown Houston`}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 size-full" role="img" aria-label={`Map of ${pins.length} sampled buildings${area ? ` in ${area}` : ""}`}>
         <defs>
           <radialGradient id="glow">
             <stop offset="0" stopColor="#8b5cf6" stopOpacity=".55" />
@@ -63,6 +99,13 @@ export function StudyMap({ activeId }: { activeId: string | null }) {
           </radialGradient>
         </defs>
         <rect width={W} height={H} fill="#0c1028" />
+        {!frame.demo && (
+          <g stroke="#141a3c" strokeWidth="3">
+            {grid.map((t) => <line key={`gx${t}`} x1={t * W} y1={0} x2={t * W} y2={H} />)}
+            {grid.map((t) => <line key={`gy${t}`} x1={0} y1={t * H} x2={W} y2={t * H} />)}
+          </g>
+        )}
+        {frame.demo && (<>
         <g transform={`rotate(-36 ${W / 2} ${H / 2})`} stroke="#121838" strokeWidth="7">
           {streets.map((o) => (
             <line key={`a${o}`} x1={o + W / 2} y1={-600} x2={o + W / 2} y2={H + 600} />
@@ -79,6 +122,7 @@ export function StudyMap({ activeId }: { activeId: string | null }) {
         <text x={W * 0.03} y={H * 0.12} fill="#2f3f66" fontSize="26" letterSpacing="3">BUFFALO BAYOU</text>
         <text x={W * 0.115} y={H * 0.98} fill="#4b4590" fontSize="24" letterSpacing="3">I-45</text>
         <text x={W * 0.79} y={H * 0.08} fill="#4b4590" fontSize="24" letterSpacing="3">I-69</text>
+        </>)}
 
         {pins.map((p) => {
           const active = p.id === activeId;

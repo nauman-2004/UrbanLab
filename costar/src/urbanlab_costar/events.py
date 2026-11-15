@@ -16,6 +16,7 @@ Two profiles:
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from typing import Any, Literal
 
@@ -34,6 +35,7 @@ GAP_STATUS = frozenset({"open", "queued", "collecting", "filled", "declined"})
 # Required keys per event type (mirrors events.ts).
 REQUIRED: dict[str, tuple[str, ...]] = {
     "study.started": ("studyId", "question"),
+    "study.error": ("message",),
     "plan.updated": ("plan",),
     "todos.updated": ("todos",),
     "stage.changed": ("stage",),
@@ -58,8 +60,14 @@ REQUIRED: dict[str, tuple[str, ...]] = {
 PROPERTY_REQUIRED = ("id", "costarId", "name", "address", "propertyClass", "occupancyPct", "lat", "lng")
 
 
+_IDENT = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+
+
 def _variable_ok(v: Any, profile: Profile) -> bool:
-    return v in VARIABLE_KEYS or (profile == "extended" and isinstance(v, str) and v in VARIABLES)
+    """Strict: the six template keys. Extended: also any catalog or locally mapped kit variable name."""
+    if v in VARIABLE_KEYS:
+        return True
+    return profile == "extended" and isinstance(v, str) and (v in VARIABLES or bool(_IDENT.match(v)))
 
 
 def validate_event(e: Any, profile: Profile = "strict") -> list[str]:
@@ -189,6 +197,12 @@ class EventWriter:
 
     def study_started(self, study_id: str, question: str) -> None:
         self.send({"type": "study.started", "studyId": study_id, "question": question})
+
+    def error(self, message: str, supported_regions: list[str] | None = None) -> None:
+        e: dict[str, Any] = {"type": "study.error", "message": message}
+        if supported_regions:
+            e["supportedRegions"] = supported_regions
+        self.send(e)
 
     def plan_updated(self, plan: dict[str, Any]) -> None:
         self.send({"type": "plan.updated", "plan": plan})

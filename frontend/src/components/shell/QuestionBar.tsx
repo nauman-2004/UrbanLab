@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { STUDY } from "@/lib/data/houston";
 import { useStudy } from "@/lib/state/StudyProvider";
 import type { Stage } from "@/lib/types";
@@ -14,8 +15,11 @@ const STAGES: { id: Stage; label: string }[] = [
   { id: "report", label: "Report" },
 ];
 
+/** UrbanLab's supported study areas (CoStar kit coverage). Enforced by the backend; shown here as guidance. */
+export const SUPPORTED_SCOPE = "Houston, TX · Los Angeles, CA";
+
 export function QuestionBar() {
-  const { state, status } = useStudy();
+  const { state, status, sourceKind } = useStudy();
   const current = STAGES.findIndex((s) => s.id === state.stage);
   const finished = state.reportDraft != null;
   const started = state.studyId != null;
@@ -26,9 +30,21 @@ export function QuestionBar() {
         <div className="grid size-10 shrink-0 place-items-center rounded-[11px] bg-accent/15 text-accent2">
           <Icon name="target" className="size-5" />
         </div>
-        <div className="min-w-0">
-          <div className="text-[11px] font-medium text-muted">Research question</div>
-          <div className="text-[15px] font-semibold leading-snug">{state.question || STUDY.question}</div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-medium text-muted">
+            Research question <span className="text-dim">· supported areas: {SUPPORTED_SCOPE}</span>
+          </div>
+          {sourceKind === "live" && (status === "idle" || status === "error" || status === "done") ? (
+            <QuestionInput initial={state.question} />
+          ) : (
+            <div className="text-[15px] font-semibold leading-snug">{state.question || STUDY.question}</div>
+          )}
+          {state.error && (
+            <p role="alert" className="mt-1 text-[12px] font-medium text-gap">
+              {state.error.message}
+              {state.error.supportedRegions?.length ? ` Supported: ${state.error.supportedRegions.join(", ")}.` : ""}
+            </p>
+          )}
         </div>
       </div>
 
@@ -60,14 +76,42 @@ export function QuestionBar() {
   );
 }
 
+function QuestionInput({ initial }: { initial: string }) {
+  const { start } = useStudy();
+  const [q, setQ] = useState(initial);
+  return (
+    <form
+      className="mt-0.5 flex gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (q.trim()) start(q);
+      }}
+    >
+      <label htmlFor="research-question" className="sr-only">Research question</label>
+      <input
+        id="research-question"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        maxLength={2000}
+        placeholder="Ask about properties in Houston, TX or Los Angeles, CA…"
+        className="min-w-0 flex-1 rounded-lg border border-line2 bg-[#0c1023] px-2.5 py-1.5 text-[14px] font-semibold text-ink placeholder:font-normal placeholder:text-dim focus:border-accent2 focus:outline-none"
+      />
+      <button type="submit" disabled={!q.trim()} className="rounded-[9px] bg-gradient-to-br from-accent to-violet-600 px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-40">
+        Ask
+      </button>
+    </form>
+  );
+}
+
 function ReplayControls({ status }: { status: string }) {
   const { start, togglePause, speed, setSpeed, sourceKind } = useStudy();
 
+  if (status === "idle" && sourceKind === "live") return null;
   if (status === "idle")
     return (
       <button
         type="button"
-        onClick={start}
+        onClick={() => start()}
         className="inline-flex items-center gap-1.5 rounded-[9px] bg-gradient-to-br from-accent to-violet-600 px-3.5 py-2 text-[12.5px] font-semibold text-white shadow-[0_6px_18px_#7c3aed44] hover:brightness-110"
       >
         <Icon name="play" className="size-3" /> Run study
@@ -103,7 +147,7 @@ function ReplayControls({ status }: { status: string }) {
         ))}
       </div>
       {status === "done" && (
-        <button type="button" onClick={start} aria-label="Replay study" className="grid size-8 place-items-center rounded-lg border border-line2 text-muted hover:text-ink">
+        <button type="button" onClick={() => start()} aria-label="Replay study" className="grid size-8 place-items-center rounded-lg border border-line2 text-muted hover:text-ink">
           <Icon name="restart" className="size-3.5" />
         </button>
       )}

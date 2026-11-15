@@ -35,17 +35,40 @@ export interface Evidence {
   note?: string;
 }
 
-export interface Cell<T = number> {
+/**
+ * How a value was obtained, independently of which system produced it.
+ * - observed: read from a record (e.g. CoStar-reported)
+ * - computed: arithmetic on recorded inputs (sums, ratios, parcel-polygon area)
+ * - model_estimate: produced by a model (e.g. Vexcel segmentation); carries confidence
+ * - self_reported: said by a person in an interview (always starts unverified)
+ */
+export type Method = "observed" | "computed" | "model_estimate" | "self_reported";
+
+/** Optional provenance details sent by the backend's extended profile. */
+export interface Provenance {
+  method: Method;
+  unit?: string | null;
+  confidence?: number | null;
+  uncertainty?: string | null;
+  inputs?: string[];
+}
+
+/** Values are numeric for measured variables; categorical variables (e.g. building class) are text. */
+export type CellScalar = number | string | boolean;
+
+export interface Cell<T extends CellScalar = number> {
   value: T;
   source: Source;
   verification: Verification;
   evidence: Evidence;
+  /** Optional: method / unit / confidence / uncertainty (backend extended profile). */
+  provenance?: Provenance;
   /** Replay/clock time (ms) the value arrived — drives "just filled" highlights. */
   at: number;
 }
 
-/** Variables collected per building. Keys double as dataset column ids. */
-export type VariableKey =
+/** The variables of the built-in parking study template (typed numeric cells). */
+export type KnownVariableKey =
   | "yearBuilt"
   | "lotSf"
   | "rbaSf"
@@ -53,13 +76,27 @@ export type VariableKey =
   | "garageStalls"
   | "offsiteSpaces";
 
+/**
+ * Variables collected per building. Keys double as dataset column ids.
+ * Any research question can add its own variables (e.g. "occupancy_pct", "building_class").
+ */
+export type VariableKey = KnownVariableKey | (string & {});
+
 export interface PropertyInfo {
   id: string; // e.g. "B-07"
   costarId: string;
   name: string;
   address: string;
-  propertyClass: "A" | "B";
-  occupancyPct: number;
+  /** City / state / property type as recorded (absent when not recorded). */
+  city?: string;
+  state?: string;
+  propertyType?: string;
+  /** Building class as recorded (e.g. "A", "B", "C"); absent when not recorded. */
+  propertyClass?: string;
+  /** Recorded tenant occupancy %, absent when the data does not support a figure. Never a placeholder 0. */
+  occupancyPct?: number;
+  /** Why a field above is absent, e.g. { occupancyPct: "1 of 2 current tenancies have no area" }. */
+  missing?: Record<string, string>;
   /** WGS84 */
   lat: number;
   lng: number;
@@ -69,9 +106,11 @@ export interface PropertyInfo {
   contactRole?: string;
 }
 
+export type CellMap = Partial<Record<KnownVariableKey, Cell>> & { [variable: string]: Cell<CellScalar> | undefined };
+
 export interface PropertyRow {
   info: PropertyInfo;
-  cells: Partial<Record<VariableKey, Cell>>;
+  cells: CellMap;
 }
 
 export interface Gap {

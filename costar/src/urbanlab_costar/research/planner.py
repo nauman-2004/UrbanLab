@@ -227,15 +227,24 @@ def plan_research(spec: ResearchSpec, caps: Capabilities, *, max_properties: int
     return ResearchPlan(spec, plans, n, requests, worst, within, errors, warnings)
 
 
-def study_plan_event_payload(plan: ResearchPlan) -> dict[str, Any]:
-    """The frontend ``StudyPlan`` (only variables with a frontend VariableKey)."""
+def study_plan_event_payload(plan: ResearchPlan, profile: str = "strict") -> dict[str, Any]:
+    """The frontend ``StudyPlan``. Strict: only template VariableKeys. Extended: every requested variable
+    (unavailable ones included, so the UI can show them as gaps)."""
     from .variables import FRONTEND_KEYS
 
     variables = []
     for vp in plan.variables.values():
+        if not vp.requested:
+            continue
         fk = FRONTEND_KEYS.get(vp.variable)
-        if fk and vp.requested and vp.option:
-            variables.append({"key": fk, "label": vp.label, "source": vp.option.source.value})
+        key = fk or (vp.variable if profile == "extended" else None)
+        if key is None or (profile == "strict" and not vp.option):
+            continue
+        source = vp.option.source.value if vp.option else (
+            vp.rejected and {"kit": "costar", "kitjoin": "costar", "vexcel": "vexcel", "matterport": "matterport",
+                             "interview": "interview", "derived": "derived"}.get(vp.rejected[0][0].split(":")[0])
+        ) or "derived"
+        variables.append({"key": key, "label": vp.label, "source": source})
     region = geo.REGIONS[plan.spec.region].label
     types = ", ".join(plan.spec.property_types) or "all property types"
     return {
