@@ -1,111 +1,86 @@
 /**
- * Core domain types for UrbanLab.
+ * Domain types, mirroring the agent backend (backend/dataset.py, tools.py,
+ * analysis.py). The backend is the source of truth: variables, sources and
+ * values all arrive over the event stream; nothing is hard-coded here.
  *
- * Every measured value in a study is a `Cell` that carries its provenance
- * (which system produced it) and, for self-reported values, a verification
- * status. The UI never shows a number without being able to say where it
- * came from.
+ * Every value is a `Cell` with its provenance. A cell without a value is
+ * explicitly `missing` with a human-readable `reason`.
  */
 
-/** Systems that can produce a value in the dataset. */
-export type Source =
-  | "costar" // CoStar property records (incl. parking notes)
-  | "vexcel" // Vexcel aerial imagery, measured by a vision model
-  | "matterport" // Matterport 3D scans
-  | "interview" // Cartesia voice interview, extracted by the LLM
-  | "derived"; // Computed by UrbanLab from other cells
+/** Systems that can produce a value (backend `Source`). */
+export type Source = "costar" | "vexcel" | "survey";
 
-/**
- * Self-reported values (interviews) start `unverified` and only become
- * `verified` when independently confirmed (e.g. a lease document).
- * Values from records / imagery / scans are `observed`.
- */
-export type Verification = "observed" | "unverified" | "verified";
-
-export interface Evidence {
-  /** Human-readable reference, e.g. "CoStar #1084-221" or "iv-07 @ 00:12". */
-  ref: string;
-  /** Optional deep link to the underlying record / image / scan / recording. */
-  url?: string;
-  /** Short quote for interview-derived values. */
-  quote?: string;
-  /** Model confidence 0..1 for machine-extracted values. */
-  confidence?: number;
-  /** Free-text note, e.g. "inferred from CoStar parking notes — no 3D scan". */
-  note?: string;
-}
-
-export interface Cell<T = number> {
-  value: T;
+/** One variable in the approved plan (from the backend's VARIABLE_CATALOG). */
+export interface PlanVariable {
+  name: string; // e.g. "ev_chargers_installed"
   source: Source;
-  verification: Verification;
-  evidence: Evidence;
-  /** Replay/clock time (ms) the value arrived — drives "just filled" highlights. */
-  at: number;
-}
-
-/** Variables collected per building. Keys double as dataset column ids. */
-export type VariableKey =
-  | "yearBuilt"
-  | "lotSf"
-  | "rbaSf"
-  | "surfaceSf"
-  | "garageStalls"
-  | "offsiteSpaces";
-
-export interface PropertyInfo {
-  id: string; // e.g. "B-07"
-  costarId: string;
-  name: string;
-  address: string;
-  propertyClass: "A" | "B";
-  occupancyPct: number;
-  /** WGS84 */
-  lat: number;
-  lng: number;
-  /** Optional media links filled by integrations. */
-  aerialUrl?: string;
-  matterportUrl?: string;
-  contactRole?: string;
-}
-
-export interface PropertyRow {
-  info: PropertyInfo;
-  cells: Partial<Record<VariableKey, Cell>>;
-}
-
-export interface Gap {
-  propertyId: string;
-  variable: VariableKey;
-  reason: string;
-  status: "open" | "queued" | "collecting" | "filled" | "declined";
-}
-
-export type TodoStatus = "pending" | "running" | "done";
-export interface Todo {
-  id: string;
-  label: string;
-  status: TodoStatus;
-  detail?: string;
+  type: "int" | "float" | "bool" | "category" | string;
+  label: string; // e.g. "EV charging ports installed"
 }
 
 export interface StudyPlan {
-  question: string;
   hypothesis: string;
-  variables: { key: VariableKey; label: string; source: Source }[];
-  sample: string;
+  variables: PlanVariable[];
+  sample: { city: string; property_type: string; n: number };
 }
 
-export type Stage = "plan" | "collect" | "measure" | "fill" | "analyze" | "report";
+/** A building in the sample (CoStar record). */
+export interface Building {
+  building_id: string; // e.g. "B-03"
+  costar_id?: string | null;
+  name?: string | null;
+  address?: string | null;
+  city?: string | null;
+  property_type?: string | null;
+  lat: number;
+  lng: number;
+  /** Backend-relative URL of the aerial tile the vision model measured. */
+  aerial_url?: string;
+}
 
-export interface LogEntry {
-  id: number;
-  at: number;
-  kind: "todo" | "tool" | "subagent" | "gap" | "approval" | "cell" | "analysis" | "info";
-  text: string;
-  detail?: string;
-  /** e.g. "gemini", "cartesia" — rendered as a small model badge. */
-  tag?: string;
+export interface Cell {
+  building_id: string;
+  variable: string;
+  value: number | string | null;
+  source: Source;
+  confidence: number | null;
+  /** e.g. "CoStar #1084", "Vexcel tile x.png", 'call-1a2b @ 00:12: "We have 4…"' */
+  evidence_ref: string | null;
+  status: "filled" | "missing";
+  reason: string | null;
+  note: string | null;
+  updated_at: number;
+}
+
+export interface Gap {
+  building_id: string;
+  variable: string;
+  source: Source;
+  reason: string;
+}
+
+/** The six Deep Agents subagents, in the order the orchestrator runs them. */
+export type StepName = "planner" | "data_collector" | "vision_measurer" | "gap_analyst" | "field_surveyor" | "analyst";
+
+export interface Step {
+  name: StepName | string;
+  status: "pending" | "running" | "done";
+  description?: string;
+  summary?: string;
+}
+
+/** Human-in-the-loop interrupt (DeepAgents `interrupt_on`), one per gated tool call. */
+export interface Approval {
+  action_id: string;
+  kind: "plan" | "survey" | "tool";
+  tool: string;
+  args: Record<string, unknown>;
+  description: string;
+  allowed_decisions: string[];
+  /** All actions raised in the same pause share a round. */
+  round: number;
+  round_size: number;
+  status: "pending" | "approved" | "rejected";
 }
 
 export interface Utterance {
@@ -113,36 +88,60 @@ export interface Utterance {
   text: string;
   /** seconds into the call */
   t: number;
-  /** substring to highlight as the extracted answer */
-  highlight?: string;
 }
 
-export interface InterviewQuestion {
-  text: string;
-  maps: VariableKey | "context";
-  status: "pending" | "asking" | "answered";
-  answer?: string;
-}
-
-export interface Interview {
-  id: string; // e.g. "iv-07"
-  propertyId: string;
-  contact: string;
-  status: "dialing" | "live" | "ended";
-  consent: { approvedAt?: number; verbalAt?: number; recording: boolean };
-  questions: InterviewQuestion[];
+export interface Call {
+  call_id: string;
+  building_id: string;
+  contact_role: string;
+  consent: boolean;
   transcript: Utterance[];
-  extracted?: { variable: VariableKey; value: number; confidence: number; quoteT: number };
-  startedAt: number;
-  /** seconds elapsed on the call (updated by events) */
-  elapsed: number;
+  duration_s: number;
+  /** true while telephony.start_call() is the scripted stub */
+  stub: boolean;
 }
 
-export interface ApprovalRequest {
-  id: string;
-  title: string;
-  purpose: string;
-  targets: { propertyId: string; contact: string }[];
-  questions: string[];
-  status: "pending" | "approved" | "denied";
+/** One outcome compared between older and newer buildings (analysis.py). */
+export interface Effect {
+  variable: string;
+  label?: string;
+  n: number;
+  n_older?: number;
+  n_newer?: number;
+  mean_older?: number | null;
+  mean_newer?: number | null;
+  diff_older_minus_newer?: number | null;
+  diff_ci95?: [number | null, number | null] | null;
+  spearman_rho_vs_year_built?: number | null;
+  spearman_p?: number | null;
+  mann_whitney_p?: number | null;
+  note?: string;
+}
+
+export interface DecadeStat {
+  variable: string;
+  decade: number;
+  n: number;
+  mean: number | null;
+  ci95: [number | null, number | null] | null;
+}
+
+export interface Findings {
+  era_cutoff?: number;
+  n_buildings?: number;
+  findings: string[];
+  effects: Effect[];
+  by_decade?: DecadeStat[];
+  chart_spec?: { title?: string; data?: { values: { decade: string; mean: number | null; lo: number | null; hi: number | null; n: number }[] } } | null;
+  limitations: string[];
+  error?: string;
+}
+
+export interface LogEntry {
+  id: number;
+  at: number;
+  kind: "step" | "tool" | "gap" | "approval" | "cell" | "call" | "analysis" | "info" | "error";
+  text: string;
+  detail?: string;
+  tag?: string;
 }

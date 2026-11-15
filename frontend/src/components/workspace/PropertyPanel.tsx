@@ -1,142 +1,103 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { deriveRow, fmt } from "@/lib/analysis";
+import { formatValue, parseSurveyEvidence } from "@/lib/format";
+import { cellKey } from "@/lib/state/reducer";
 import { useStudy } from "@/lib/state/StudyProvider";
-import type { Cell, PropertyRow, Source } from "@/lib/types";
+import type { Cell, PlanVariable, Source } from "@/lib/types";
 import { Icon } from "../ui/Icon";
-import { SourceTag } from "../ui/Provenance";
+import { SelfReportedBadge, SourceTag, StubBadge } from "../ui/Provenance";
 import { AerialTile } from "./AerialTile";
-import { VerifyControl } from "./VerifyControl";
 
-function Layer({ source, meta, children, tone }: { source: Source; meta?: ReactNode; children: ReactNode; tone?: "voice" | "gap" }) {
-  const toneCls = tone === "voice" ? "border-voice/40 bg-voice/[0.05]" : tone === "gap" ? "border-gap/40 hatch-gap" : "border-line bg-[#0e1229]";
+const SOURCES: Source[] = ["costar", "vexcel", "survey"];
+const LAYER_META: Record<Source, string> = { costar: "property record", vexcel: "aerial imagery", survey: "property manager" };
+
+function VarRow({ v, cell }: { v: PlanVariable; cell?: Cell }) {
+  const filled = cell?.status === "filled";
+  const ev = v.source === "survey" ? parseSurveyEvidence(cell?.evidence_ref ?? null) : null;
   return (
-    <div className={`rounded-[10px] border px-2.5 py-2 ${toneCls}`}>
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <SourceTag source={source} />
-        {meta && <span className="truncate font-mono text-[10px] text-dim">{meta}</span>}
+    <div className="py-1 text-[11.5px]" title={cell?.evidence_ref ?? undefined}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-muted">{v.label}</span>
+        {filled ? (
+          <span className="font-mono font-semibold">{formatValue(cell!.value, v.type, v.name)}</span>
+        ) : cell && cell.reason && !/^Not (yet )?collected\.$/.test(cell.reason) ? (
+          <span className="font-semibold text-gap">MISSING</span>
+        ) : (
+          <span className="font-mono text-xs text-dim">pending…</span>
+        )}
       </div>
-      {children}
+      {filled && v.source === "vexcel" && cell!.note && <p className="mt-0.5 text-[10.5px] text-dim">{cell!.note}</p>}
+      {filled && ev?.quote && (
+        <p className="mt-0.5 text-[10.5px] text-muted italic">
+          “{ev.quote}” <span className="font-mono not-italic text-dim">{ev.callId} @ {ev.at}</span>
+        </p>
+      )}
+      {!filled && cell?.reason && !/^Not (yet )?collected\.$/.test(cell.reason) && <p className="mt-0.5 text-[10.5px] text-muted">{cell.reason}</p>}
     </div>
   );
 }
 
-const Big = ({ children, className }: { children: ReactNode; className: string }) => <span className={`font-mono text-lg font-semibold ${className}`}>{children}</span>;
-
-const Pending = () => <span className="font-mono text-xs text-dim">pending…</span>;
-
-/** "Inside and out" panel: CoStar facts + Vexcel aerial + Matterport + interview for one building. */
-export function PropertyPanel({ row }: { row: PropertyRow | null }) {
-  const { state } = useStudy();
-  if (!row) {
+/** Every layer of evidence for one building: CoStar record, Vexcel aerial, phone survey. */
+export function PropertyPanel({ buildingId }: { buildingId: string | null }) {
+  const { state, openCall } = useStudy();
+  const b = buildingId ? state.buildings[buildingId] : null;
+  if (!b) {
     return (
       <div className="grid w-full shrink-0 place-items-center border-line p-6 text-center text-xs text-dim xl:w-[340px] xl:border-l">
-        Select a building to inspect its CoStar record, aerial measurement and 3D scan.
+        Select a building to inspect its CoStar record, aerial measurement and survey answers.
       </div>
     );
   }
-  const c = row.cells;
-  const d = deriveRow(row);
-  const gap = state.gaps.find((g) => g.propertyId === row.info.id);
-  const garage: Cell | undefined = c.garageStalls;
-  const off = c.offsiteSpaces;
+  const vars = state.plan?.variables ?? [];
+  const cell = (name: string) => state.cells[cellKey(b.building_id, name)];
+  const vexcelCell = vars.filter((v) => v.source === "vexcel").map((v) => cell(v.name)).find(Boolean);
+  const call = state.callOrder.map((id) => state.calls[id]).find((c) => c.building_id === b.building_id);
+  const sample = String(b.costar_id ?? "").startsWith("SAMPLE");
 
   return (
-    <aside className="scrollbar-thin flex w-full shrink-0 flex-col overflow-y-auto border-line bg-[#121734] xl:w-[340px] xl:border-l" aria-label={`${row.info.name} details`}>
-      <AerialTile row={row} />
+    <aside className="scrollbar-thin flex w-full shrink-0 flex-col overflow-y-auto border-line bg-[#121734] xl:w-[340px] xl:border-l" aria-label={`${b.name ?? b.building_id} details`}>
+      <AerialTile building={b} measured={vexcelCell} />
       <div className="px-3 pt-2 pb-1.5">
-        <b className="text-[15px]">{row.info.name}</b>
+        <b className="text-[15px]">{b.name ?? b.building_id}</b>
         <div className="text-[11.5px] text-muted">
-          {row.info.address}, Houston TX · Office · Class {row.info.propertyClass} · {row.info.id}
+          {[b.address, b.city, b.property_type, b.building_id].filter(Boolean).join(" · ")}
         </div>
       </div>
       <div className="flex flex-col gap-1.5 px-2.5 pb-2.5">
-        <Layer source="costar" meta={`property #${row.info.costarId}`}>
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11.5px]">
-            {[
-              ["Year built", c.yearBuilt ? String(c.yearBuilt.value) : "—"],
-              ["RBA", c.rbaSf ? `${(c.rbaSf.value / 1e6).toFixed(2)}M sf` : "—"],
-              ["Lot", c.lotSf ? `${fmt.int(c.lotSf.value)} sf` : "—"],
-              ["Occupancy", `${row.info.occupancyPct}%`],
-            ].map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-2">
-                <dt className="text-muted">{k}</dt>
-                <dd className="font-mono">{v}</dd>
+        {SOURCES.map((src) => {
+          const vs = vars.filter((v) => v.source === src);
+          if (!vs.length) return null;
+          const tone = src === "survey" ? "border-voice/40 bg-voice/[0.05]" : "border-line bg-[#0e1229]";
+          const anyFilled = vs.some((v) => cell(v.name)?.status === "filled");
+          return (
+            <div key={src} className={`rounded-[10px] border px-2.5 py-2 ${tone}`}>
+              <div className="mb-0.5 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5">
+                  <SourceTag source={src} />
+                  {src === "costar" && sample && <StubBadge>SAMPLE</StubBadge>}
+                  {src === "survey" && call?.stub && <StubBadge />}
+                </span>
+                <span className="truncate font-mono text-[10px] text-dim">{src === "costar" && b.costar_id ? `#${b.costar_id}` : LAYER_META[src]}</span>
               </div>
-            ))}
-          </dl>
-        </Layer>
-
-        <Layer source="vexcel" meta={c.surfaceSf ? `~${fmt.int(d.surfaceStalls)} stalls` : undefined}>
-          <div className="flex items-baseline justify-between text-[11.5px]">
-            <span className="text-muted">Surface parking</span>
-            {c.surfaceSf ? (
-              <span>
-                <Big className="text-vexcel">{fmt.int(c.surfaceSf.value)} sf</Big>
-                <span className="ml-1 font-mono text-muted">· {fmt.pct(d.surfaceRatio)} of lot</span>
-              </span>
-            ) : (
-              <Pending />
-            )}
-          </div>
-        </Layer>
-
-        <Layer
-          source={garage?.source === "costar" ? "costar" : "matterport"}
-          meta={garage ? (garage.source === "matterport" ? `${garage.evidence.ref} · ${garage.evidence.note}` : "no 3D scan · inferred") : undefined}
-        >
-          <div className="flex items-baseline justify-between text-[11.5px]">
-            <span className="text-muted">Structured garage stalls</span>
-            {garage ? <Big className={garage.source === "matterport" ? "text-mport" : "text-costar"}>{fmt.int(garage.value)}</Big> : <Pending />}
-          </div>
-          {garage?.source === "costar" && <p className="mt-0.5 text-[10.5px] text-dim">{garage.evidence.note}</p>}
-          {row.info.matterportUrl && (
-            <a href={row.info.matterportUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[10.5px] text-mport hover:underline">
-              Open 3D tour <Icon name="external" className="size-3" />
-            </a>
-          )}
-        </Layer>
-
-        {off?.source === "interview" ? (
-          <Layer source="interview" tone="voice" meta={off.evidence.ref}>
-            <div className="flex items-start justify-between gap-2 text-[11.5px]">
-              <div>
-                <span className="text-muted">Off-site leased spaces</span>
-                <div className={off.verification === "unverified" ? "unverified-ring mt-0.5 inline-block rounded px-1.5" : "mt-0.5"}>
-                  <Big className="text-voice">{fmt.int(off.value)}</Big>
+              <div className="divide-y divide-line/60">
+                {vs.map((v) => (
+                  <VarRow key={v.name} v={v} cell={cell(v.name)} />
+                ))}
+              </div>
+              {src === "survey" && anyFilled && (
+                <div className="mt-1">
+                  <SelfReportedBadge />
                 </div>
-              </div>
-              <VerifyControl propertyId={row.info.id} variable="offsiteSpaces" cell={off} />
+              )}
+              {src === "survey" && call && (
+                <button type="button" onClick={() => openCall(call.call_id)} className="mt-1.5 inline-flex items-center gap-1 text-[10.5px] font-semibold text-voice hover:underline">
+                  View call transcript ({call.call_id}) <Icon name="expand" className="size-3" />
+                </button>
+              )}
             </div>
-            {off.evidence.quote && <p className="mt-1 text-[10.5px] text-muted italic">“{off.evidence.quote}”</p>}
-          </Layer>
-        ) : off ? (
-          <Layer source="costar" meta="parking notes">
-            <div className="flex items-baseline justify-between text-[11.5px]">
-              <span className="text-muted">Off-site leased spaces</span>
-              <Big className="text-costar">{fmt.int(off.value)}</Big>
-            </div>
-          </Layer>
-        ) : gap ? (
-          <Layer source="interview" tone="gap" meta={gap.status === "collecting" ? "calling now…" : gap.status}>
-            <div className="flex items-baseline justify-between text-[11.5px]">
-              <span className="text-muted">Off-site leased spaces</span>
-              <span className="font-semibold text-gap">MISSING</span>
-            </div>
-            <p className="mt-0.5 text-[10.5px] text-muted">{gap.reason}</p>
-          </Layer>
-        ) : null}
-
-        {d.complete && (
-          <div className="flex items-center justify-between rounded-[10px] border border-line px-2.5 py-1.5 text-[11.5px]">
-            <span className="text-muted">Total supply</span>
-            <span className="font-mono">
-              {fmt.int(d.totalStalls)} stalls · <b className="text-ink">{fmt.dec(d.stallsPer1k)}</b> / 1k sf
-              {d.unverified && <span className="ml-1 text-unverified" title="Includes an unverified self-reported value">⚠</span>}
-            </span>
-          </div>
-        )}
+          );
+        })}
+        {!vars.length && <p className="px-1 text-[11.5px] text-dim">Variables appear once the plan is approved.</p>}
       </div>
     </aside>
   );

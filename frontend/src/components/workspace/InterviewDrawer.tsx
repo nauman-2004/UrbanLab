@@ -1,78 +1,59 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { fmtCallTime, formatValue, parseSurveyEvidence } from "@/lib/format";
+import { buildingName, cellKey } from "@/lib/state/reducer";
 import { useStudy } from "@/lib/state/StudyProvider";
 import { Icon } from "../ui/Icon";
-import { VarChip } from "../ui/Provenance";
-import { Waveform } from "../ui/Waveform";
-import { fmtCall } from "./InterviewMini";
-import { VerifyControl } from "./VerifyControl";
+import { SelfReportedBadge, StubBadge, VarChip } from "../ui/Provenance";
 
-const ts = (t: number) => `00:${String(t).padStart(2, "0")}`;
+const ts = (t: number) => fmtCallTime(t).padStart(5, "0");
 
-function Highlighted({ text, mark }: { text: string; mark?: string }) {
-  if (!mark || !text.includes(mark)) return <>{text}</>;
-  const [a, b] = text.split(mark);
-  return (
-    <>
-      {a}
-      <mark className="rounded-[3px] bg-voice/20 px-0.5 text-[#bbf7d0]">{mark}</mark>
-      {b}
-    </>
-  );
-}
-
-/** Expanded Cartesia interview panel: consent, progress, transcript, extraction, controls. */
+/** One phone survey: consent, the approved questions, transcript, and what was extracted into the dataset. */
 export function InterviewDrawer() {
-  const { state, drawerOpen, setDrawerOpen, sourceKind, hangup } = useStudy();
-  const [muted, setMuted] = useState(false);
-  const scroller = useRef<HTMLDivElement>(null);
+  const { state, drawerCallId, openCall } = useStudy();
   const closeBtn = useRef<HTMLButtonElement>(null);
-
-  const id = state.activeInterviewId ?? state.interviewOrder.at(-1);
-  const iv = id ? state.interviews[id] : null;
+  const call = drawerCallId ? state.calls[drawerCallId] : null;
 
   useEffect(() => {
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
-  }, [iv?.transcript.length]);
-
-  useEffect(() => {
-    if (!drawerOpen) return;
+    if (!call) return;
     closeBtn.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawerOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && openCall(null);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [drawerOpen, setDrawerOpen]);
+  }, [call, openCall]);
 
-  if (!drawerOpen || !iv) return null;
+  if (!call) return null;
 
-  const row = state.rows[iv.propertyId];
-  const live = iv.status !== "ended";
-  const cell = iv.extracted ? row?.cells[iv.extracted.variable] : undefined;
-  const answered = iv.questions.filter((q) => q.status === "answered").length;
-  const speaking = iv.transcript.at(-1)?.speaker === "agent";
+  const approval = state.approvals.find((a) => a.kind === "survey" && a.args.building_id === call.building_id);
+  const questions = Array.isArray(approval?.args.questions) ? (approval!.args.questions as string[]) : [];
+  const surveyVars = (state.plan?.variables ?? []).filter((v) => v.source === "survey");
+  const answers = surveyVars.map((v) => {
+    const c = state.cells[cellKey(call.building_id, v.name)];
+    return { v, c, ev: parseSurveyEvidence(c?.evidence_ref ?? null) };
+  });
+  const quotes = answers.map((a) => a.ev.quote).filter(Boolean) as string[];
 
   return (
     <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-labelledby="iv-title">
-      <button type="button" aria-label="Close interview" onClick={() => setDrawerOpen(false)} className="absolute inset-0 bg-[#050712]/60 backdrop-blur-[2px]" />
+      <button type="button" aria-label="Close transcript" onClick={() => openCall(null)} className="absolute inset-0 bg-[#050712]/60 backdrop-blur-[2px]" />
       <aside className="absolute inset-y-0 right-0 flex w-full max-w-[500px] flex-col border-l border-line2 bg-gradient-to-b from-[#151a39] to-[#0f1330] shadow-[-30px_0_60px_#000a]">
         <div className="flex items-center gap-2.5 border-b border-line px-5 py-3.5">
           <span className="size-[30px] rounded-full bg-[radial-gradient(circle_at_35%_30%,#c4b5fd,#7c3aed_60%,#3b1e8f)] shadow-[0_0_18px_#8b5cf688]" />
           <div className="flex-1">
-            <h2 id="iv-title" className="text-base font-bold">Field Interview</h2>
+            <h2 id="iv-title" className="text-base font-bold">Phone survey</h2>
             <div className="text-[11px] text-muted">
-              field-interviewer subagent · interview {state.interviewOrder.indexOf(iv.id) + 1} of {state.approval?.targets.length ?? 3}
+              field_surveyor subagent · call {state.callOrder.indexOf(call.call_id) + 1} of {state.callOrder.length} · <span className="font-mono">{call.call_id}</span>
             </div>
           </div>
-          <span className={`rounded-full border px-2 py-0.5 text-[10.5px] font-semibold ${live ? "border-voice/40 bg-voice/10 text-voice" : "border-line2 text-muted"}`}>
-            {live ? "● LIVE" : "ENDED"} {fmtCall(iv.elapsed)}
-          </span>
-          <button ref={closeBtn} type="button" onClick={() => setDrawerOpen(false)} aria-label="Minimize interview" className="grid size-8 place-items-center rounded-full bg-[#1d2246] text-muted hover:text-ink">
+          {call.stub && <StubBadge />}
+          <span className="rounded-full border border-line2 px-2 py-0.5 text-[10.5px] font-semibold text-muted">{fmtCallTime(call.duration_s)}</span>
+          <button ref={closeBtn} type="button" onClick={() => openCall(null)} aria-label="Close transcript" className="grid size-8 place-items-center rounded-full bg-[#1d2246] text-muted hover:text-ink">
             <Icon name="close" className="size-3.5" />
           </button>
         </div>
 
-        <div ref={scroller} className="scrollbar-thin flex-1 overflow-y-auto">
+        <div className="scrollbar-thin flex-1 overflow-y-auto">
           <section className="border-b border-line px-5 py-3">
             <div className="flex items-center gap-3">
               <div className="grid size-10 shrink-0 place-items-center rounded-[10px] bg-[#1d2246] text-accent2">
@@ -80,126 +61,85 @@ export function InterviewDrawer() {
               </div>
               <div className="min-w-0">
                 <b className="text-sm">
-                  {row?.info.name} · {iv.contact}
+                  {buildingName(state, call.building_id)} · {call.contact_role}
                 </b>
                 <div className="text-[11.5px] text-muted">
-                  Contact from CoStar #{row?.info.costarId} · gap: <span className="font-mono text-gap">offsite_spaces</span>
+                  {call.building_id} · gaps: {surveyVars.map((v) => v.name).join(", ") || "—"}
                 </div>
               </div>
             </div>
             <div className="mt-2.5 flex flex-wrap gap-1.5 text-[10.5px]">
               <span className="rounded-full border border-voice/30 bg-voice/10 px-2 py-0.5 text-[#a7f3d0]">✓ Approved by researcher</span>
-              <span className={`rounded-full border px-2 py-0.5 ${iv.consent.verbalAt != null ? "border-voice/30 bg-voice/10 text-[#a7f3d0]" : "border-line2 text-muted"}`}>
-                {iv.consent.verbalAt != null ? `✓ Verbal consent · ${ts(iv.consent.verbalAt)}` : "… awaiting verbal consent"}
+              <span className={`rounded-full border px-2 py-0.5 ${call.consent ? "border-voice/30 bg-voice/10 text-[#a7f3d0]" : "border-gap/30 bg-gap/10 text-[#fecaca]"}`}>
+                {call.consent ? "✓ Contact consented" : "✕ Contact declined"}
               </span>
-              {iv.consent.recording && <span className="rounded-full border border-gap/30 bg-gap/10 px-2 py-0.5 text-[#fecaca]">● Recording for research</span>}
+              <span className="rounded-full border border-gap/30 bg-gap/10 px-2 py-0.5 text-[#fecaca]">● Recorded for research</span>
             </div>
+            {call.stub && (
+              <p className="mt-2 rounded-[9px] border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[11px] text-amber-200">
+                Scripted stub transcript: telephony isn&apos;t connected yet (backend/telephony.py). Don&apos;t report these answers.
+              </p>
+            )}
           </section>
 
-          <section className="flex flex-col items-center border-b border-line px-5 py-3">
-            <span className={`relative grid size-14 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#ddd6fe,#8b5cf6_55%,#3b1e8f)] shadow-[0_0_0_10px_#8b5cf61a,0_0_40px_#8b5cf6aa]`}>
-              {live && speaking && <span className="absolute inset-0 animate-pulse-ring rounded-full border border-accent2" />}
-              <Icon name="wave" className="size-6 text-white" />
-            </span>
-            <div className="mt-2 text-[13px] font-semibold">
-              UrbanLab Research Agent <span className="font-medium text-dim">· {live ? (speaking ? "speaking" : "listening") : "call ended"}</span>
-            </div>
-            <div className="mt-2">
-              <Waveform bars={70} height={30} active={live && !muted} />
-            </div>
-          </section>
-
-          <section className="border-b border-line px-5 py-3">
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-dim">Interview progress · {answered} / {iv.questions.length}</div>
-            <ol className="flex flex-col gap-1.5">
-              {iv.questions.map((q, i) => (
-                <li
-                  key={i}
-                  className={`flex gap-2.5 rounded-[9px] border px-2.5 py-2 text-xs ${q.status === "asking" ? "border-accent2/50 bg-accent/10" : "border-line bg-well"}`}
-                >
-                  <span
-                    className={`grid size-5 shrink-0 place-items-center rounded-full border-2 text-[10px] font-bold ${
-                      q.status === "answered" ? "border-voice bg-voice text-[#0b0f1e]" : q.status === "asking" ? "border-accent2 text-accent2" : "border-line2 text-muted"
-                    }`}
-                  >
-                    {q.status === "answered" ? "✓" : i + 1}
-                  </span>
-                  <div className={q.status === "pending" ? "text-muted" : ""}>
-                    {q.text}
-                    {q.answer && (
-                      <div className="mt-1">
-                        <VarChip source={q.maps === "context" ? "derived" : "interview"}>{q.maps === "context" ? `context · ${q.answer}` : `offsite_spaces · ${q.answer}`}</VarChip>
-                      </div>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          <section className="border-b border-line px-5 py-3">
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-dim">Live transcript</div>
-            <ol className="flex flex-col gap-2 text-xs" aria-live="polite">
-              {iv.transcript.map((u, i) => (
-                <li key={i} className="flex items-start gap-2.5">
-                  <span className={`w-14 shrink-0 rounded-md py-0.5 text-center text-[9.5px] font-bold ${u.speaker === "agent" ? "bg-accent/20 text-accent2" : "bg-voice/15 text-voice"}`}>
-                    {u.speaker === "agent" ? "AI" : "Contact"}
-                  </span>
-                  <p className="flex-1 text-soft">
-                    <Highlighted text={u.text} mark={u.highlight} />
-                  </p>
-                  <time className="font-mono text-[10px] text-dim">{ts(u.t)}</time>
-                </li>
-              ))}
-              {live && <li className="pl-16 text-dim">•••</li>}
-            </ol>
-          </section>
-
-          {iv.extracted && (
-            <section className="px-5 py-3">
-              <div className="rounded-[10px] border border-voice/35 bg-voice/[0.06] px-3 py-2.5 text-xs">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <span className="mr-1 font-bold text-voice">↳</span>
-                    Extracted by Gemini: <b className="font-mono">offsite_spaces = {iv.extracted.value.toLocaleString("en-US")}</b>
-                    <div className="mt-0.5 text-muted">
-                      conf {iv.extracted.confidence.toFixed(2)} · quote {ts(iv.extracted.quoteT)} · written to dataset
-                    </div>
-                  </div>
-                  {cell && <VerifyControl propertyId={iv.propertyId} variable={iv.extracted.variable} cell={cell} />}
-                </div>
-                {cell?.verification === "unverified" && (
-                  <p className="mt-2 text-[11px] text-unverified/90">Self-reported. Findings flag this value and report results with and without it until it is independently confirmed.</p>
-                )}
-              </div>
+          {questions.length > 0 && (
+            <section className="border-b border-line px-5 py-3">
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-dim">Approved questions · {questions.length}</div>
+              <ol className="list-decimal space-y-1 pl-5 text-xs text-soft">
+                {questions.map((q) => (
+                  <li key={q}>{q}</li>
+                ))}
+              </ol>
             </section>
           )}
-        </div>
 
-        <div className="flex items-center justify-center gap-4 border-t border-line px-5 py-3">
-          <button
-            type="button"
-            onClick={() => setMuted((m) => !m)}
-            aria-pressed={muted}
-            aria-label={muted ? "Unmute audio" : "Mute audio"}
-            className="grid size-11 place-items-center rounded-full bg-[#1d2246] text-muted hover:text-ink"
-          >
-            <Icon name={muted ? "micOff" : "mic"} className="size-[18px]" />
-          </button>
-          <button
-            type="button"
-            onClick={() => hangup(iv.id)}
-            disabled={!live || sourceKind === "replay"}
-            title={sourceKind === "replay" ? "Hang-up is available in live mode" : "End call"}
-            aria-label="End call"
-            className="grid size-14 place-items-center rounded-full bg-red-500 text-white shadow-[0_8px_20px_#ef444466] disabled:opacity-50"
-          >
-            <Icon name="phoneOff" className="size-5" />
-          </button>
-          <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Minimize interview" className="grid size-11 place-items-center rounded-full bg-[#1d2246] text-muted hover:text-ink">
-            <Icon name="expand" className="size-[18px] rotate-180" />
-          </button>
-          <span className="absolute right-5 bottom-4 hidden text-[10px] text-dim sm:block">Voice by Cartesia</span>
+          <section className="border-b border-line px-5 py-3">
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-dim">Transcript</div>
+            <ol className="flex flex-col gap-2 text-xs">
+              {call.transcript.map((u, i) => {
+                const hit = u.speaker === "contact" && quotes.includes(u.text);
+                return (
+                  <li key={i} className="flex items-start gap-2.5">
+                    <span className={`w-14 shrink-0 rounded-md py-0.5 text-center text-[9.5px] font-bold ${u.speaker === "agent" ? "bg-accent/20 text-accent2" : "bg-voice/15 text-voice"}`}>
+                      {u.speaker === "agent" ? "AI" : "Contact"}
+                    </span>
+                    <p className={`flex-1 ${hit ? "rounded-[3px] bg-voice/15 px-1 text-[#bbf7d0]" : "text-soft"}`}>{u.text}</p>
+                    <time className="font-mono text-[10px] text-dim">{ts(u.t)}</time>
+                  </li>
+                );
+              })}
+              {call.transcript.length === 0 && <li className="text-dim">No transcript.</li>}
+            </ol>
+          </section>
+
+          <section className="px-5 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.09em] text-dim">Extracted into the dataset</span>
+              {answers.some((a) => a.c?.status === "filled") && <SelfReportedBadge compact />}
+            </div>
+            <ul className="space-y-1.5">
+              {answers.map(({ v, c, ev }) => (
+                <li key={v.name} className="rounded-[10px] border border-line bg-well px-3 py-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <VarChip source="survey">{v.name}</VarChip>
+                    {c?.status === "filled" ? (
+                      <b className="font-mono">{formatValue(c.value, v.type)}</b>
+                    ) : (
+                      <span className="font-semibold text-gap">MISSING</span>
+                    )}
+                  </div>
+                  {c?.status === "filled" ? (
+                    <div className="mt-1 text-[11px] text-muted">
+                      conf {c.confidence?.toFixed(2) ?? "—"} · quote {ev.at ?? "—"}
+                      {ev.quote && <span className="block italic">“{ev.quote}”</span>}
+                    </div>
+                  ) : (
+                    c?.reason && <div className="mt-1 text-[11px] text-muted">{c.reason}</div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
       </aside>
     </div>

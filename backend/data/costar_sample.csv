@@ -1,0 +1,13 @@
+costar_id,name,address,city,property_type,lat,lng,year_built,rba_sf,lot_sf,building_class,occupancy_pct,parking_spaces,parking_ratio
+SAMPLE-0001,Sample Office 01 (placeholder),100 Placeholder St,Houston,Office,29.75710,-95.36410,1974,412000,98000,B,81,610,1.5
+SAMPLE-0002,Sample Office 02 (placeholder),200 Placeholder St,Houston,Office,29.76050,-95.36980,1982,655000,72000,A,88,1450,2.2
+SAMPLE-0003,Sample Office 03 (placeholder),300 Placeholder St,Houston,Office,29.74980,-95.46120,1968,148000,121000,B,74,520,3.5
+SAMPLE-0004,Sample Office 04 (placeholder),400 Placeholder St,Houston,Office,29.73890,-95.46310,1979,236000,143000,B,79,,
+SAMPLE-0005,Sample Office 05 (placeholder),500 Placeholder St,Houston,Office,29.78520,-95.52740,1996,318000,165000,A,90,1210,3.8
+SAMPLE-0006,Sample Office 06 (placeholder),600 Placeholder St,Houston,Office,29.77830,-95.56010,2008,402000,188000,A,92,1610,4.0
+SAMPLE-0007,Sample Office 07 (placeholder),700 Placeholder St,Houston,Office,29.71720,-95.40180,1985,121000,64000,B,69,360,3.0
+SAMPLE-0008,Sample Office 08 (placeholder),800 Placeholder St,Houston,Office,29.95210,-95.42030,2015,265000,210000,A,94,1060,4.0
+SAMPLE-0009,Sample Office 09 (placeholder),900 Placeholder St,Houston,Office,29.73360,-95.43180,1962,88000,52000,B,66,240,2.7
+SAMPLE-0010,Sample Office 10 (placeholder),1000 Placeholder St,Houston,Office,29.75120,-95.37190,2019,780000,61000,A,86,1640,2.1
+SAMPLE-0011,Sample Retail 11 (placeholder),1100 Placeholder St,Houston,Retail,29.74010,-95.41000,1990,45000,130000,B,95,300,6.7
+SAMPLE-0012,Sample Office 12 (placeholder),1200 Placeholder St,Dallas,Office,32.78010,-96.80010,1988,300000,90000,A,85,900,3.0

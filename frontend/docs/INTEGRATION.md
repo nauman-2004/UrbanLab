@@ -1,56 +1,79 @@
-# UrbanLab — Backend Integration Contract
+# UrbanLab — Frontend ⇄ Agent Backend
 
-The frontend never calls CoStar, Vexcel, Matterport, the LLM or Cartesia directly.
-The **agent backend** (LangChain Deep Agents) calls those services and streams **`StudyEvent`s** to the UI.
-The UI sends back **`StudyCommand`s** for human-in-the-loop actions.
+The frontend never calls CoStar, Vexcel, the LLM or telephony directly. The **agent backend**
+(`backend/`, LangChain Deep Agents) runs the study and streams its progress as events; the UI is a pure
+function of that stream. The backend is the source of truth: the plan's variables, the sample, every
+value and its provenance all arrive as events. Nothing about the study is hard-coded in the UI.
 
-Source of truth for the types: [`src/lib/events.ts`](../src/lib/events.ts) and [`src/lib/types.ts`](../src/lib/types.ts).
-The demo replay in [`src/lib/replay/script.ts`](../src/lib/replay/script.ts) is a complete, working example of a valid event stream.
+Types: [`src/lib/events.ts`](../src/lib/events.ts) (events) and [`src/lib/types.ts`](../src/lib/types.ts) (domain),
+mirroring `backend/events.py`, `dataset.py`, `tools.py` and `analysis.py`.
 
-## Transport
+## Modes
 
-| Method | Path | Body / response |
-|---|---|---|
-| `POST` | `/studies` | `{ "question": string }` → `{ "studyId": string }` |
-| `GET` | `/studies/{id}/events` | `text/event-stream`; each `data:` line is one `StudyEvent` JSON object |
-| `POST` | `/studies/{id}/commands` | one `StudyCommand` JSON object → `202 Accepted` |
+Set in the **repo-root `.env`** (loaded by `next.config.ts`; `frontend/.env.local` overrides it):
 
-Enable it with `NEXT_PUBLIC_STUDY_SOURCE=live` and `NEXT_PUBLIC_API_BASE=<url>` (see `src/lib/source/live.ts`).
-Allow CORS from the frontend origin. Do **not** put API keys in `NEXT_PUBLIC_*` variables; they belong to the backend.
+| Variable | Values |
+|---|---|
+| `NEXT_PUBLIC_STUDY_SOURCE` | `replay` (default): plays a recorded backend run, no backend needed · `live`: talks to the backend |
+| `NEXT_PUBLIC_API_BASE` | backend URL for live mode, default `http://localhost:8000` |
 
-## Who emits what
+The backend must allow the frontend origin in `CORS_ORIGINS`. Never put API keys in `NEXT_PUBLIC_*`.
 
-| Integration | Backend responsibility | Events the UI expects |
-|---|---|---|
-| **LangChain Deep Agents** | Planner, `write_todos`, subagents, `interrupt_on` | `study.started`, `plan.updated`, `todos.updated` (full snapshot), `stage.changed`, `tool.called`, `subagent.started` / `subagent.finished`, `approval.requested`, `analysis.started`, `report.ready` |
-| **CoStar** (SDK / MCP / OpenAPI) | Sample selection, building records, parking notes, contact role | `property.added` (`PropertyInfo` with real `lat`/`lng`, `costarId`, `contactRole`), `cell.filled` with `source: "costar"` for `yearBuilt`, `rbaSf`, `lotSf`, optionally `offsiteSpaces` / `garageStalls` (set `evidence.note` when inferred) |
-| **Vexcel** | Ortho tile per building; segmentation by the vision LLM | `cell.filled` `surfaceSf`, `source: "vexcel"`, `evidence.confidence`; optional `PropertyInfo.aerialUrl` (the UI shows the real tile instead of the schematic) |
-| **Matterport** | Count structured parking in the scan | `cell.filled` `garageStalls`, `source: "matterport"`, `evidence.ref` = scan id, `evidence.note` = levels; optional `PropertyInfo.matterportUrl` |
-| **Gemini ⇄ Nemotron** | Vision segmentation, transcript extraction | Surface through `tool.called` / `subagent.started` with `tag: "gemini"` (or `"nemotron"`) and `interview.extracted` with `confidence` and `quoteT` |
-| **Cartesia** | Voice call (TTS + STT), only after approval | `interview.started`, `interview.consent`, `interview.utterance`, `interview.question`, `interview.extracted`, `interview.ended` |
+`npm run dev` (in `frontend/`) sets these for you: it starts the backend, waits for `/health`, then starts the UI in
+live mode. `npm run dev:fake` uses the scripted test model and `npm run dev:demo` runs replay mode only.
+To run the pieces separately:
 
-## Rules the backend must follow
-
-1. **Gaps before calls.** Emit `gap.detected` for each value that can't be observed, then `approval.requested`. **Do not start any call until** a `{"type":"approval.respond","approved":true}` command arrives. On `approved:false`, emit no interviews and continue to analysis.
-2. **Interview values are unverified.** Every `cell.filled` with `source: "interview"` must use `verification: "unverified"` and include `evidence.ref` (e.g. `"iv-01 @ 00:12"`) and `evidence.quote`. Only a `cell.verify` command (researcher-supplied evidence) or an independent document check may emit `cell.verified`.
-3. **Consent first.** Emit `interview.consent` after the contact agrees, before any substantive question. If consent is refused, emit `interview.ended` and `gap.status: "declined"`.
-4. **Stable ids.** `propertyId` (e.g. `"B-07"`) and `VariableKey`s must match across events.
-5. **Statistics are client-side.** The UI computes medians, Spearman and Mann-Whitney from the dataset (`src/lib/analysis.ts`), so findings always match the visible data. The backend only signals `analysis.started` / `report.ready`.
-
-## Commands the UI sends
-
-```jsonc
-{ "type": "approval.respond", "requestId": "ap-1", "approved": true }
-{ "type": "interview.hangup", "interviewId": "iv-01" }
-{ "type": "cell.verify", "propertyId": "B-01", "variable": "offsiteSpaces", "evidenceRef": "Parking lease agreement" }
+```bash
+cd backend && uv run uvicorn main:app --port 8000      # or tests.fake_server:app (no API key / quota)
+cd frontend && npm run dev:web                          # UI only, mode from .env
 ```
 
-## Minimal example stream
+## Transport (`src/lib/source/live.ts`)
 
-```text
-data: {"type":"study.started","studyId":"s1","question":"Do older office buildings in Houston dedicate more land to surface parking?"}
-data: {"type":"property.added","property":{"id":"B-01","costarId":"1084-221","name":"…","address":"…","propertyClass":"A","occupancyPct":84,"lat":29.7571,"lng":-95.3641}}
-data: {"type":"cell.filled","propertyId":"B-01","variable":"yearBuilt","cell":{"value":1974,"source":"costar","verification":"observed","evidence":{"ref":"CoStar #1084-221"}}}
-data: {"type":"gap.detected","gap":{"propertyId":"B-01","variable":"offsiteSpaces","reason":"Off-site parking contracts aren't visible in records, aerials, or 3D scans"}}
-data: {"type":"approval.requested","request":{"id":"ap-1","title":"Approve 1 research interview","purpose":"…","targets":[{"propertyId":"B-01","contact":"Property manager"}],"questions":["…"]}}
+| Method | Path | Body → response |
+|---|---|---|
+| `POST` | `/studies` | `{question}` → `{study_id}` |
+| `GET` | `/studies/{id}/events` | SSE. `event:` = type, `data:` = event JSON. Replays history on (re)connect; the reducer drops duplicates by `seq`. Ends after `study_completed` / `study_failed`. |
+| `POST` | `/studies/{id}/approve` | `{action_id, approved, feedback?}` → 202. The agent resumes once every approval in the pause is answered. |
+| `GET` | `/tiles/{file}` | the aerial tile a building was measured from |
+| `GET` | `/studies/{id}/dataset` | full snapshot (not used by the UI; handy for debugging) |
+
+## Events
+
+Every event is `{type, study_id, seq, ts, data}`:
+
+| type | data | UI |
+|---|---|---|
+| `study_started` | `{question}` | question bar |
+| `step_started` / `step_done` | `{step, step_id, description \| summary}` | stepper, Research Plan subagents, activity log |
+| `tool_called` | `{step, name, args}` (subagent tool calls) | activity log |
+| `plan_ready` | `{plan: {hypothesis, variables:[{name, source, type, label}], sample:{city, property_type, n}}}` | Research Plan; dataset columns |
+| `building_added` | `{building: {building_id, costar_id, name, address, city, property_type, lat, lng}}` | map, table rows |
+| `building_updated` | `{building_id, aerial_url}` | aerial tile in the building panel |
+| `cell_updated` | `{cell: {building_id, variable, value, source, confidence, evidence_ref, status, reason, note, updated_at}}` | table, building panel |
+| `gap_detected` | `{building_id, variable, source, reason}` | gap banner, map |
+| `approval_required` | `{action_id, kind: "plan"\|"survey", tool, args, description, allowed_decisions, round, round_size}` | approval dialog |
+| `call_transcript` | `{building_id, call_id, contact_role, consent, transcript:[{speaker, text, t}], duration_s, stub}` | call card + transcript drawer |
+| `findings_ready` | `{findings[], effects[], by_decade[], chart_spec, limitations[], era_cutoff, n_buildings}` | Findings page |
+| `study_completed` / `study_failed` | `{summary}` / `{error}` | summary, status |
+
+Rules the UI relies on:
+
+1. **Statistics are server-side.** `analysis.py` computes every number from filled cells; the Findings page renders them as-is.
+2. **Missing is explicit.** A cell with `status: "missing"` always has a `reason`; `"Not yet collected."` is the placeholder before a tool runs.
+3. **Survey values are self-reported.** They're shown as unverified, with the quote from `evidence_ref` (`call-… @ mm:ss: "…"`).
+   `evidence_ref` starting with `STUB` means the telephony stub produced it.
+4. **Approvals come in rounds.** All `approval_required` events from one pause share `round`; the dialog shows them together
+   (one plan review, or one card per phone call that can be approved or declined individually).
+
+## Replay mode
+
+`src/lib/replay/recorded-study.json` is a recorded event stream, played by `src/lib/source/replay.ts` with
+compressed timing; it pauses at each approval like the real agent. Re-record it after changing the backend's events:
+
+```bash
+cd backend
+uv run uvicorn tests.fake_server:app --port 8000   # or main:app for a run with the live models (uses API quota)
+uv run python scripts/record_replay.py
+cp data/tiles/*.png ../frontend/public/replay/tiles/   # tiles the replay shows
 ```
