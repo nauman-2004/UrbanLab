@@ -5,7 +5,6 @@ import { Card, CardHeader } from "../ui/Card";
 import { AgentActivity } from "./AgentActivity";
 import { ApprovalModal } from "./ApprovalModal";
 import { DatasetTable } from "./DatasetTable";
-import { InterviewDrawer } from "./InterviewDrawer";
 import { PropertyPanel } from "./PropertyPanel";
 import { ResearchPlan } from "./ResearchPlan";
 import { StudyMap } from "./StudyMap";
@@ -48,7 +47,6 @@ export function Workspace() {
         </div>
       </div>
       <ApprovalModal />
-      <InterviewDrawer />
     </>
   );
 }

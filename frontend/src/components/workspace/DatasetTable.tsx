@@ -22,16 +22,14 @@ function ValueCell({ v, cell, at, clock }: { v: PlanVariable; cell?: Cell; at?: 
     );
   }
   const fresh = at != null && clock >= at && clock - at < FRESH_MS;
-  const self = cell.source === "survey";
   return (
     <td
-      className={`px-3 py-1 font-mono whitespace-nowrap ${fresh ? "animate-flash" : ""} ${self ? "unverified-ring bg-voice/[0.07]" : ""}`}
+      className={`px-3 py-1 font-mono whitespace-nowrap ${fresh ? "animate-flash" : ""}`}
       title={`${cell.evidence_ref ?? ""}${cell.confidence != null && cell.confidence < 1 ? ` — conf ${cell.confidence.toFixed(2)}` : ""}${cell.note ? ` — ${cell.note}` : ""}`}
     >
       <span className="inline-flex items-center gap-1.5">
         <SourceDot source={cell.source} />
         {formatValue(cell.value, v.type, v.name)}
-        {self && <span className="font-sans text-[9px] font-bold text-unverified">⚠</span>}
       </span>
     </td>
   );
@@ -43,7 +41,7 @@ export function DatasetTable({ activeId }: { activeId: string | null }) {
   const cells = Object.values(state.cells);
   const filled = cells.filter((c) => c.status === "filled").length;
   const missing = cells.filter((c) => c.status === "missing" && !isPlaceholder(c.reason)).length;
-  const surveyGaps = state.gaps.filter((g) => state.cells[cellKey(g.building_id, g.variable)]?.status !== "filled");
+  const openGaps = state.gaps.filter((g) => state.cells[cellKey(g.building_id, g.variable)]?.status !== "filled");
 
   return (
     <Card className="h-full">
@@ -61,11 +59,11 @@ export function DatasetTable({ activeId }: { activeId: string | null }) {
           </span>
         }
       />
-      {surveyGaps.length > 0 && (
+      {openGaps.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-line bg-gradient-to-r from-gap/10 to-transparent px-3.5 py-1.5 text-xs text-soft">
-          <b className="text-gap">⚠ {surveyGaps.length} evidence gap{surveyGaps.length > 1 ? "s" : ""}</b>
+          <b className="text-gap">⚠ {openGaps.length} evidence gap{openGaps.length > 1 ? "s" : ""}</b>
           <span>
-            across {new Set(surveyGaps.map((g) => g.building_id)).size} buildings. {surveyGaps[0].reason}
+            across {new Set(openGaps.map((g) => g.building_id)).size} buildings. {openGaps[0].reason}
           </span>
         </div>
       )}

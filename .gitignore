@@ -2,3 +2,7 @@
 .env
 .env.*
 !.env.example
+
+# Sponsor data: never commit the CoStar kit
+costar-hackathon-kit.zip
+*.zip

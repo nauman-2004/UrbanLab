@@ -25,7 +25,6 @@ COSTAR_FIELDS: dict[str, str] = {
     "rba_sf": "building_area_sf",
     "lot_sf": "land_area_sf",
     "building_class": "building_class",
-    "occupancy_pct": "occupancy_pct",
     "parking_spaces": "parking_spaces",
     "parking_ratio": "parking_ratio",
 }

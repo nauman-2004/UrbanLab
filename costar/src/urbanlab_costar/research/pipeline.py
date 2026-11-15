@@ -1,7 +1,7 @@
 """Execute a :class:`ResearchPlan`: select properties, collect values with
 provenance, record gaps, and stream frontend-compatible events.
 
-Approval, interviews and narrative analysis belong to the agent backend; the
+Approval and narrative analysis belong to the agent backend; the
 pipeline ends after gaps are known (optionally signalling analysis/report for
 a self-contained demo).
 """
@@ -14,8 +14,6 @@ from typing import Any
 
 from ..dataset import Dataset, StudyProperty
 from ..events import EventWriter, Profile
-from ..interviews import interview_gap
-from ..kit import tenancy
 from ..kit.repository import PropertyFilter, PropertyRepository
 from ..matterport.adapter import MatterportAdapter
 from ..provenance import Gap, GapKind, Source, Value, derive_ratio
@@ -125,13 +123,6 @@ def run_research(
 
     dataset = Dataset(variables=_collect_set(plan))
     todos.set("t-kit", "running")
-    tenancy_vars = plan.chosen("kitjoin:tenancy")
-    tenancies: dict[str, tenancy.TenancySummary] = {}
-    as_of = adapters.repository.field_map.as_of or ""
-    if tenancy_vars:
-        tenancies = tenancy.summarize(adapters.repository, {r.kit_id for r in records})
-        w.tool("costar.kit.join_tenancies", summary=f"tenancies joined for {len(tenancies)} of {len(records)} "
-               f"properties (as of {as_of})")
     for i, rec in enumerate(records, start=1):
         sp = StudyProperty(
             property_id=f"P-{i:02d}", costar_id=rec.kit_id, name=rec.get("name"), address=rec.get("address"),
@@ -146,11 +137,6 @@ def run_research(
                 note = "; ".join(n for n in (item.evidence.note, opt.note) if n)
                 item = replace(item, evidence=replace(item.evidence, note=note))
             sp.set(item)
-        if tenancy_vars:
-            joined = tenancy.tenancy_values(rec.kit_id, tenancies.get(rec.kit_id), sp.values.get("building_area_sf"),
-                                            as_of)
-            for var in tenancy_vars:
-                sp.set(joined[var])
         if adapters.matterport and (mp_index_vars or mp_live_vars):
             mres = adapters.matterport.collect(rec.kit_id, mp_index_vars)
             for item in _items(mres.values, mres.gaps):
@@ -170,12 +156,6 @@ def run_research(
             info["propertyClass"] = str(rec.get("building_class"))
         else:
             missing["propertyClass"] = (rec.gaps.get("building_class") or _NO_FIELD).reason
-        occ = sp.values.get("occupancy_pct")
-        if occ is not None:
-            info["occupancyPct"] = occ.value
-        else:
-            g = sp.gaps.get("occupancy_pct")
-            missing["occupancyPct"] = g.reason if g else "occupancy was not requested for this study"
         if not sp.name:
             missing["name"] = "no building name recorded; showing the CoStar property id"
         if profile == "extended" and missing:
@@ -185,7 +165,7 @@ def run_research(
             warnings.append(f"{sp.property_id}: no coordinates in kit; kept in dataset, not sent to the map")
             continue
         w.property_added(info)
-        for var in kit_vars | mp_index_vars | tenancy_vars:
+        for var in kit_vars | mp_index_vars:
             if var in sp.values:
                 w.cell(sp.property_id, sp.values[var])
     todos.set("t-kit", "done")
@@ -244,9 +224,7 @@ def run_research(
                                 scale=scale, unit=VARIABLES[var].unit or "ratio")
             sp.set(item)
         for var, vp in plan.variables.items():
-            if vp.status == "requires_interview" and var not in sp.values:
-                sp.set(interview_gap(var, [r for _, r in vp.rejected]))
-            elif vp.status == "unavailable":
+            if vp.status == "unavailable":
                 reasons = "; ".join(r for _, r in vp.rejected) or "no source"
                 sp.set(Gap(var, GapKind.NO_SOURCE, reasons))
         emitted = any(e.get("type") == "property.added" and e["property"]["id"] == sp.property_id

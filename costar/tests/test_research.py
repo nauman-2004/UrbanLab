@@ -9,8 +9,7 @@ import pytest
 from conftest import make_settings
 from urbanlab_costar import synthetic
 from urbanlab_costar.events import validate_event
-from urbanlab_costar.interviews import InterviewAnswer, apply_answer, interview_requests
-from urbanlab_costar.provenance import GapKind, Method, Verification
+from urbanlab_costar.provenance import GapKind, Method
 from urbanlab_costar.purge import UnsafePurge, purge
 from urbanlab_costar.research import Capabilities, ResearchSpec, SpecError, plan_research
 from urbanlab_costar.research.pipeline import run_research
@@ -47,8 +46,8 @@ def test_houston_parking_plan_source_selection() -> None:
     assert v["year_built"].option.source.value == "costar"  # type: ignore[union-attr]
     assert v["land_area_sf"].option.requires == "vexcel:parcel"  # type: ignore[union-attr]  # kit field not mapped
     assert v["surface_parking_sf"].option.method is Method.MODEL_ESTIMATE  # type: ignore[union-attr]
-    assert v["offsite_spaces"].status == "requires_interview"
-    assert v["garage_stalls"].status == "requires_interview"
+    assert "offsite_spaces" not in v
+    assert v["garage_stalls"].status == "unavailable"  # kit field not mapped; nothing else may fill it
     assert "matterport" in v["garage_stalls"].to_dict()["excluded_sources"]
     assert v["surface_parking_share"].status == "available"
     assert plan.requests == {"vexcel": 40, "matterport": 0}  # 20 parcels + 20 detections
@@ -131,7 +130,7 @@ def test_dataset_provenance_and_gaps(result: Any) -> None:
     p10 = ds.get("P-10")  # synthetic Vexcel 404
     assert p10.gaps["surface_parking_sf"].kind is GapKind.NOT_FOUND
     assert p10.gaps["surface_parking_share"].kind is GapKind.MISSING_IN_RECORD
-    assert all(p.gaps["offsite_spaces"].kind is GapKind.REQUIRES_INTERVIEW for p in ds.properties)
+    assert all(p.gaps["garage_stalls"].kind is GapKind.NO_SOURCE for p in ds.properties)
     csv_text = ds.to_csv()
     assert "surface_parking_sf__method" in csv_text and "model_estimate" in csv_text
     old = [p.values["surface_parking_share"].value for p in ds.properties[:6] if "surface_parking_share" in p.values]
@@ -143,18 +142,6 @@ def test_model_estimates_are_labelled_in_strict_events(result: Any) -> None:
     surf = [e for e in result.events if e["type"] == "cell.filled" and e["variable"] == "surfaceSf"]
     assert surf and all("MODEL ESTIMATE" in e["cell"]["evidence"]["note"] for e in surf)
     assert all(0 <= e["cell"]["evidence"]["confidence"] <= 1 for e in surf)
-
-
-def test_interview_interface_values_stay_unverified(result: Any) -> None:
-    reqs = interview_requests(result.dataset)
-    assert {r["variable"] for r in reqs} == {"garage_stalls", "offsite_spaces"}
-    v = apply_answer(result.dataset, InterviewAnswer("iv-01", "P-01", "offsite_spaces", 120, "about a hundred "
-                                                     "and twenty spaces in the lot across the street", 72, 0.86,
-                                                     "Property manager"))
-    assert v.verification is Verification.UNVERIFIED and v.evidence.ref == "iv-01 @ 01:12"
-    assert v.verified("Parking lease agreement").verification is Verification.VERIFIED
-    with pytest.raises(ValueError):
-        apply_answer(result.dataset, InterviewAnswer("iv-02", "P-01", "year_built", 1970, "q", 1, 0.5))
 
 
 def test_extended_profile_adds_provenance(isolated: Path) -> None:

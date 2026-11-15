@@ -1,34 +1,34 @@
 [
  {
   "type": "study_started",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 0,
-  "ts": 1794715622.6259825,
+  "ts": 1794733459.2456658,
   "data": {
-   "question": "How prepared are commercial office properties in Houston for EV adoption?"
+   "question": "Do older office buildings in Houston dedicate more land to surface parking?"
   }
  },
  {
   "type": "step_started",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 1,
-  "ts": 1794715622.6856716,
+  "ts": 1794733459.3344917,
   "data": {
    "step": "planner",
-   "step_id": "call_task_0_81431200",
+   "step_id": "call_task_0_20988325",
    "description": "Do planner"
   }
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 2,
-  "ts": 1794715622.7304988,
+  "ts": 1794733459.4176748,
   "data": {
    "step": "planner",
    "name": "submit_plan",
    "args": {
-    "hypothesis": "Older Houston offices have fewer EV charging ports than newer ones.",
+    "hypothesis": "Older Houston offices devote a larger share of their lot to surface parking than newer ones.",
     "variables": [
      {
       "name": "year_built",
@@ -49,16 +49,6 @@
       "name": "est_surface_spaces",
       "source": "vexcel",
       "type": "int"
-     },
-     {
-      "name": "ev_chargers_installed",
-      "source": "survey",
-      "type": "int"
-     },
-     {
-      "name": "ev_expansion_planned",
-      "source": "survey",
-      "type": "bool"
      }
     ],
     "sample": {
@@ -71,15 +61,15 @@
  },
  {
   "type": "approval_required",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 3,
-  "ts": 1794715622.7334967,
+  "ts": 1794733459.4368036,
   "data": {
    "action_id": "ap-1",
    "kind": "plan",
    "tool": "submit_plan",
    "args": {
-    "hypothesis": "Older Houston offices have fewer EV charging ports than newer ones.",
+    "hypothesis": "Older Houston offices devote a larger share of their lot to surface parking than newer ones.",
     "variables": [
      {
       "name": "year_built",
@@ -100,16 +90,6 @@
       "name": "est_surface_spaces",
       "source": "vexcel",
       "type": "int"
-     },
-     {
-      "name": "ev_chargers_installed",
-      "source": "survey",
-      "type": "int"
-     },
-     {
-      "name": "ev_expansion_planned",
-      "source": "survey",
-      "type": "bool"
      }
     ],
     "sample": {
@@ -130,12 +110,12 @@
  },
  {
   "type": "plan_ready",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 4,
-  "ts": 1794715625.6868072,
+  "ts": 1794733462.6596942,
   "data": {
    "plan": {
-    "hypothesis": "Older Houston offices have fewer EV charging ports than newer ones.",
+    "hypothesis": "Older Houston offices devote a larger share of their lot to surface parking than newer ones.",
     "variables": [
      {
       "name": "year_built",
@@ -160,18 +140,6 @@
       "source": "vexcel",
       "type": "int",
       "label": "Est. surface spaces (aerial)"
-     },
-     {
-      "name": "ev_chargers_installed",
-      "source": "survey",
-      "type": "int",
-      "label": "EV charging ports installed"
-     },
-     {
-      "name": "ev_expansion_planned",
-      "source": "survey",
-      "type": "bool",
-      "label": "EV charger expansion planned (12 mo)"
      }
     ],
     "sample": {
@@ -184,31 +152,31 @@
  },
  {
   "type": "step_done",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 5,
-  "ts": 1794715625.7241554,
+  "ts": 1794733462.6959965,
   "data": {
    "step": "planner",
-   "step_id": "call_task_0_81431200",
-   "summary": "{\"status\": \"approved\", \"plan\": {\"hypothesis\": \"Older Houston offices have fewer EV charging ports than newer ones.\", \"variables\": [{\"name\": \"year_built\", \"source\": \"costar\", \"type\": \"int\", \"label\": \"Year built\"}, {\"name\": \"parking_spaces\", \"source\": \"costar\", \"type\": \"int\", \"label\": \"Parking spaces (CoStar)\"}, {\"name\": \"surface_parking_pct\", \"source\": \"vexcel\", \"type\": \"float\", \"label\": \"Surface parking (% of lot)\"}, {\"name\": \"est_surface_spaces\", \"source\": \"vexcel\", \"type\": \"int\", \"label\": \"Est. surface spaces (aerial)\"}, {\"name\": \"ev_chargers_installed\", \"source\": \"survey\", \"type\": \"int\", \"label\": \"EV charging ports installed\"}, {\"name\": \"ev_expansion_planned\", \"source\": \"survey\", \"type\": \"bool\", \"label\": \"EV charger expansion planned (12 mo)\"}], \"sample\": {\"city\": \"Houston\", \"property_type\": \"Office\", \"n\": 8}}}"
+   "step_id": "call_task_0_20988325",
+   "summary": "{\"status\": \"approved\", \"plan\": {\"hypothesis\": \"Older Houston offices devote a larger share of their lot to surface parking than newer ones.\", \"variables\": [{\"name\": \"year_built\", \"source\": \"costar\", \"type\": \"int\", \"label\": \"Year built\"}, {\"name\": \"parking_spaces\", \"source\": \"costar\", \"type\": \"int\", \"label\": \"Parking spaces (CoStar)\"}, {\"name\": \"surface_parking_pct\", \"source\": \"vexcel\", \"type\": \"float\", \"label\": \"Surface parking (% of lot)\"}, {\"name\": \"est_surface_spaces\", \"source\": \"vexcel\", \"type\": \"int\", \"label\": \"Est. surface spaces (aerial)\"}], \"sample\": {\"city\": \"Houston\", \"property_type\": \"Office\", \"n\": 8}}}"
   }
  },
  {
   "type": "step_started",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 6,
-  "ts": 1794715625.7458313,
+  "ts": 1794733462.7312174,
   "data": {
    "step": "data_collector",
-   "step_id": "call_task_1_95627597",
+   "step_id": "call_task_1_33387119",
    "description": "Do data_collector"
   }
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 7,
-  "ts": 1794715625.796824,
+  "ts": 1794733462.8007617,
   "data": {
    "step": "data_collector",
    "name": "get_costar_properties",
@@ -221,9 +189,9 @@
  },
  {
   "type": "building_added",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 8,
-  "ts": 1794715625.808442,
+  "ts": 1794733462.8138645,
   "data": {
    "building": {
     "building_id": "B-01",
@@ -232,6 +200,9 @@
     "address": "100 Placeholder St",
     "city": "Houston",
     "property_type": "Office",
+    "costar_source": "sample",
+    "matterport_url": null,
+    "matterport_models": null,
     "lat": 29.7571,
     "lng": -95.3641
    }
@@ -239,9 +210,9 @@
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 9,
-  "ts": 1794715625.8139575,
+  "ts": 1794733462.8184736,
   "data": {
    "cell": {
     "building_id": "B-01",
@@ -253,15 +224,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.80944
+    "updated_at": 1794733462.814879
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 10,
-  "ts": 1794715625.8189704,
+  "ts": 1794733462.824013,
   "data": {
    "cell": {
     "building_id": "B-01",
@@ -273,15 +244,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.8139575
+    "updated_at": 1794733462.8194888
    }
   }
  },
  {
   "type": "building_added",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 11,
-  "ts": 1794715625.8244445,
+  "ts": 1794733462.830204,
   "data": {
    "building": {
     "building_id": "B-02",
@@ -290,6 +261,9 @@
     "address": "200 Placeholder St",
     "city": "Houston",
     "property_type": "Office",
+    "costar_source": "sample",
+    "matterport_url": null,
+    "matterport_models": null,
     "lat": 29.7605,
     "lng": -95.3698
    }
@@ -297,9 +271,9 @@
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 12,
-  "ts": 1794715625.8309796,
+  "ts": 1794733462.8357532,
   "data": {
    "cell": {
     "building_id": "B-02",
@@ -311,15 +285,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.824961
+    "updated_at": 1794733462.8312204
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 13,
-  "ts": 1794715625.8361685,
+  "ts": 1794733462.840765,
   "data": {
    "cell": {
     "building_id": "B-02",
@@ -331,15 +305,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.8309796
+    "updated_at": 1794733462.8357532
    }
   }
  },
  {
   "type": "building_added",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 14,
-  "ts": 1794715625.842037,
+  "ts": 1794733462.8462837,
   "data": {
    "building": {
     "building_id": "B-03",
@@ -348,6 +322,9 @@
     "address": "300 Placeholder St",
     "city": "Houston",
     "property_type": "Office",
+    "costar_source": "sample",
+    "matterport_url": null,
+    "matterport_models": null,
     "lat": 29.7498,
     "lng": -95.4612
    }
@@ -355,9 +332,9 @@
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 15,
-  "ts": 1794715625.8470578,
+  "ts": 1794733462.851284,
   "data": {
    "cell": {
     "building_id": "B-03",
@@ -369,15 +346,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.8430526
+    "updated_at": 1794733462.8462837
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 16,
-  "ts": 1794715625.8525915,
+  "ts": 1794733462.8548152,
   "data": {
    "cell": {
     "building_id": "B-03",
@@ -389,15 +366,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.8480535
+    "updated_at": 1794733462.851284
    }
   }
  },
  {
   "type": "building_added",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 17,
-  "ts": 1794715625.858631,
+  "ts": 1794733462.8615162,
   "data": {
    "building": {
     "building_id": "B-04",
@@ -406,6 +383,9 @@
     "address": "400 Placeholder St",
     "city": "Houston",
     "property_type": "Office",
+    "costar_source": "sample",
+    "matterport_url": null,
+    "matterport_models": null,
     "lat": 29.7389,
     "lng": -95.4631
    }
@@ -413,9 +393,9 @@
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 18,
-  "ts": 1794715625.8621745,
+  "ts": 1794733462.870489,
   "data": {
    "cell": {
     "building_id": "B-04",
@@ -427,15 +407,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.858631
+    "updated_at": 1794733462.8629847
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 19,
-  "ts": 1794715625.8696222,
+  "ts": 1794733462.8770254,
   "data": {
    "cell": {
     "building_id": "B-04",
@@ -445,17 +425,17 @@
     "confidence": null,
     "evidence_ref": "CoStar #SAMPLE-0004",
     "status": "missing",
-    "reason": "CoStar record SAMPLE-0004 has no parking_spaces.",
+    "reason": "CoStar: not recorded in CoStar record SAMPLE-0004.",
     "note": null,
-    "updated_at": 1794715625.8634887
+    "updated_at": 1794733462.8714886
    }
   }
  },
  {
   "type": "building_added",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 20,
-  "ts": 1794715625.8759525,
+  "ts": 1794733462.8820615,
   "data": {
    "building": {
     "building_id": "B-05",
@@ -464,6 +444,9 @@
     "address": "500 Placeholder St",
     "city": "Houston",
     "property_type": "Office",
+    "costar_source": "sample",
+    "matterport_url": null,
+    "matterport_models": null,
     "lat": 29.7852,
     "lng": -95.5274
    }
@@ -471,9 +454,9 @@
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 21,
-  "ts": 1794715625.8836842,
+  "ts": 1794733462.8875763,
   "data": {
    "cell": {
     "building_id": "B-05",
@@ -485,15 +468,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.8773599
+    "updated_at": 1794733462.8820615
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 22,
-  "ts": 1794715625.890683,
+  "ts": 1794733462.893268,
   "data": {
    "cell": {
     "building_id": "B-05",
@@ -505,15 +488,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.8836842
+    "updated_at": 1794733462.8875763
    }
   }
  },
  {
   "type": "building_added",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 23,
-  "ts": 1794715625.8974364,
+  "ts": 1794733462.9047146,
   "data": {
    "building": {
     "building_id": "B-06",
@@ -522,6 +505,9 @@
     "address": "600 Placeholder St",
     "city": "Houston",
     "property_type": "Office",
+    "costar_source": "sample",
+    "matterport_url": null,
+    "matterport_models": null,
     "lat": 29.7783,
     "lng": -95.5601
    }
@@ -529,9 +515,9 @@
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 24,
-  "ts": 1794715625.9042332,
+  "ts": 1794733462.9102535,
   "data": {
    "cell": {
     "building_id": "B-06",
@@ -543,15 +529,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.8982837
+    "updated_at": 1794733462.9047146
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 25,
-  "ts": 1794715625.9109948,
+  "ts": 1794733462.9172795,
   "data": {
    "cell": {
     "building_id": "B-06",
@@ -563,15 +549,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.9042332
+    "updated_at": 1794733462.9102535
    }
   }
  },
  {
   "type": "building_added",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 26,
-  "ts": 1794715625.918306,
+  "ts": 1794733462.923817,
   "data": {
    "building": {
     "building_id": "B-07",
@@ -580,6 +566,9 @@
     "address": "700 Placeholder St",
     "city": "Houston",
     "property_type": "Office",
+    "costar_source": "sample",
+    "matterport_url": null,
+    "matterport_models": null,
     "lat": 29.7172,
     "lng": -95.4018
    }
@@ -587,9 +576,9 @@
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 27,
-  "ts": 1794715625.9250252,
+  "ts": 1794733462.9313953,
   "data": {
    "cell": {
     "building_id": "B-07",
@@ -601,15 +590,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.9188168
+    "updated_at": 1794733462.9248354
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 28,
-  "ts": 1794715625.932366,
+  "ts": 1794733462.9363954,
   "data": {
    "cell": {
     "building_id": "B-07",
@@ -621,15 +610,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.9255364
+    "updated_at": 1794733462.9313953
    }
   }
  },
  {
   "type": "building_added",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 29,
-  "ts": 1794715625.9397168,
+  "ts": 1794733462.9431005,
   "data": {
    "building": {
     "building_id": "B-08",
@@ -638,6 +627,9 @@
     "address": "800 Placeholder St",
     "city": "Houston",
     "property_type": "Office",
+    "costar_source": "sample",
+    "matterport_url": null,
+    "matterport_models": null,
     "lat": 29.9521,
     "lng": -95.4203
    }
@@ -645,9 +637,9 @@
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 30,
-  "ts": 1794715625.9471743,
+  "ts": 1794733462.948106,
   "data": {
    "cell": {
     "building_id": "B-08",
@@ -659,15 +651,15 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.9407172
+    "updated_at": 1794733462.9431005
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 31,
-  "ts": 1794715625.9543474,
+  "ts": 1794733462.9532542,
   "data": {
    "cell": {
     "building_id": "B-08",
@@ -679,37 +671,37 @@
     "status": "filled",
     "reason": null,
     "note": null,
-    "updated_at": 1794715625.9484024
+    "updated_at": 1794733462.948106
    }
   }
  },
  {
   "type": "step_done",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 32,
-  "ts": 1794715625.982124,
+  "ts": 1794733462.9846213,
   "data": {
    "step": "data_collector",
-   "step_id": "call_task_1_95627597",
-   "summary": "{\"buildings\": [{\"building_id\": \"B-01\", \"name\": \"Sample Office 01 (placeholder)\", \"lat\": 29.7571, \"lng\": -95.3641}, {\"building_id\": \"B-02\", \"name\": \"Sample Office 02 (placeholder)\", \"lat\": 29.7605, \"lng\": -95.3698}, {\"building_id\": \"B-03\", \"name\": \"Sample Office 03 (placeholder)\", \"lat\": 29.7498, \"lng\": -95.4612}, {\"building_id\": \"B-04\", \"name\": \"Sample Office 04 (placeholder)\", \"lat\": 29.7389, \"lng\": -95.4631}, {\"building_id\": \"B-05\", \"name\": \"Sample Office 05 (placeholder)\", \"lat\": 29.7852, \"lng\": -95.5274}, {\"building_id\": \"B-06\", \"name\": \"Sample Office 06 (placeholder)\", \"lat\": 29.7783, \"lng\": -95.5601}, {\"building_id\": \"B-07\", \"name\": \"Sample Office 07 (placeholder)\", \"lat\": 29.7172, \"lng\": -95.4018}, {\"building_id\": \"B-08\", \"name\": \"Sample Office 08 (placeholder)\", \"lat\": 29.9521, \"lng\": -95.4203}], \"count\": 8, \"cached\": false}"
+   "step_id": "call_task_1_33387119",
+   "summary": "{\"buildings\": [{\"building_id\": \"B-01\", \"name\": \"Sample Office 01 (placeholder)\", \"lat\": 29.7571, \"lng\": -95.3641}, {\"building_id\": \"B-02\", \"name\": \"Sample Office 02 (placeholder)\", \"lat\": 29.7605, \"lng\": -95.3698}, {\"building_id\": \"B-03\", \"name\": \"Sample Office 03 (placeholder)\", \"lat\": 29.7498, \"lng\": -95.4612}, {\"building_id\": \"B-04\", \"name\": \"Sample Office 04 (placeholder)\", \"lat\": 29.7389, \"lng\": -95.4631}, {\"building_id\": \"B-05\", \"name\": \"Sample Office 05 (placeholder)\", \"lat\": 29.7852, \"lng\": -95.5274}, {\"building_id\": \"B-06\", \"name\": \"Sample Office 06 (placeholder)\", \"lat\": 29.7783, \"lng\": -95.5601}, {\"building_id\": \"B-07\", \"name\": \"Sample Office 07 (placeholder)\", \"lat\": 29.7172, \"lng\": -95.4018}, {\"building_id\": \"B-08\", \"name\": \"Sample Office 08 (placeholder)\", \"lat\": 29.9521, \"lng\": -95.4203}], \"count\": 8, \"source\": \"sample\", \"cached\": false, \"note\": \"Buildings with lat/lng null have no coordinates: skip them for aerial tiles.\"}"
   }
  },
  {
   "type": "step_started",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 33,
-  "ts": 1794715626.002742,
+  "ts": 1794733463.009919,
   "data": {
    "step": "vision_measurer",
-   "step_id": "call_task_2_44656958",
+   "step_id": "call_task_2_61628796",
    "description": "Do vision_measurer"
   }
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 34,
-  "ts": 1794715626.0554934,
+  "ts": 1794733463.0650897,
   "data": {
    "step": "vision_measurer",
    "name": "get_aerial_tile",
@@ -721,9 +713,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 35,
-  "ts": 1794715626.0554934,
+  "ts": 1794733463.0658686,
   "data": {
    "step": "vision_measurer",
    "name": "get_aerial_tile",
@@ -735,9 +727,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 36,
-  "ts": 1794715626.0554934,
+  "ts": 1794733463.0658686,
   "data": {
    "step": "vision_measurer",
    "name": "get_aerial_tile",
@@ -749,9 +741,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 37,
-  "ts": 1794715626.0554934,
+  "ts": 1794733463.0658686,
   "data": {
    "step": "vision_measurer",
    "name": "get_aerial_tile",
@@ -763,9 +755,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 38,
-  "ts": 1794715626.0554934,
+  "ts": 1794733463.0658686,
   "data": {
    "step": "vision_measurer",
    "name": "get_aerial_tile",
@@ -777,9 +769,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 39,
-  "ts": 1794715626.0554934,
+  "ts": 1794733463.0658686,
   "data": {
    "step": "vision_measurer",
    "name": "get_aerial_tile",
@@ -791,9 +783,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 40,
-  "ts": 1794715626.0554934,
+  "ts": 1794733463.0658686,
   "data": {
    "step": "vision_measurer",
    "name": "get_aerial_tile",
@@ -805,9 +797,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 41,
-  "ts": 1794715626.0554934,
+  "ts": 1794733463.0658686,
   "data": {
    "step": "vision_measurer",
    "name": "get_aerial_tile",
@@ -819,19 +811,9 @@
  },
  {
   "type": "building_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 42,
-  "ts": 1794715626.079513,
-  "data": {
-   "building_id": "B-02",
-   "aerial_url": "/tiles/29.76050_-95.36980.png"
-  }
- },
- {
-  "type": "building_updated",
-  "study_id": "st-575e1c71",
-  "seq": 43,
-  "ts": 1794715626.0818818,
+  "ts": 1794733463.0894184,
   "data": {
    "building_id": "B-01",
    "aerial_url": "/tiles/29.75710_-95.36410.png"
@@ -839,9 +821,19 @@
  },
  {
   "type": "building_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
+  "seq": 43,
+  "ts": 1794733463.0914538,
+  "data": {
+   "building_id": "B-02",
+   "aerial_url": "/tiles/29.76050_-95.36980.png"
+  }
+ },
+ {
+  "type": "building_updated",
+  "study_id": "st-814aa0cd",
   "seq": 44,
-  "ts": 1794715626.0858827,
+  "ts": 1794733463.0951183,
   "data": {
    "building_id": "B-03",
    "aerial_url": "/tiles/29.74980_-95.46120.png"
@@ -849,9 +841,9 @@
  },
  {
   "type": "building_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 45,
-  "ts": 1794715626.0883944,
+  "ts": 1794733463.097381,
   "data": {
    "building_id": "B-04",
    "aerial_url": "/tiles/29.73890_-95.46310.png"
@@ -859,9 +851,9 @@
  },
  {
   "type": "building_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 46,
-  "ts": 1794715626.0904174,
+  "ts": 1794733463.0979476,
   "data": {
    "building_id": "B-06",
    "aerial_url": "/tiles/29.77830_-95.56010.png"
@@ -869,29 +861,29 @@
  },
  {
   "type": "building_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 47,
-  "ts": 1794715626.0934198,
-  "data": {
-   "building_id": "B-08",
-   "aerial_url": "/tiles/29.95210_-95.42030.png"
-  }
- },
- {
-  "type": "building_updated",
-  "study_id": "st-575e1c71",
-  "seq": 48,
-  "ts": 1794715626.0944273,
+  "ts": 1794733463.1002696,
   "data": {
    "building_id": "B-05",
    "aerial_url": "/tiles/29.78520_-95.52740.png"
   }
  },
  {
+  "type": "building_updated",
+  "study_id": "st-814aa0cd",
+  "seq": 48,
+  "ts": 1794733463.1047556,
+  "data": {
+   "building_id": "B-08",
+   "aerial_url": "/tiles/29.95210_-95.42030.png"
+  }
+ },
+ {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 49,
-  "ts": 1794715626.103932,
+  "ts": 1794733463.1120334,
   "data": {
    "cell": {
     "building_id": "B-07",
@@ -901,17 +893,17 @@
     "confidence": null,
     "evidence_ref": null,
     "status": "missing",
-    "reason": "No aerial imagery: No Vexcel tile available for (29.71720, -95.40180)",
+    "reason": "No aerial imagery: No Vexcel tile available for (29.71720, -95.40180); live Vexcel is off: disabled in offline/test mode",
     "note": null,
-    "updated_at": 1794715626.0904174
+    "updated_at": 1794733463.1002696
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 50,
-  "ts": 1794715626.1154993,
+  "ts": 1794733463.1229966,
   "data": {
    "cell": {
     "building_id": "B-07",
@@ -921,17 +913,17 @@
     "confidence": null,
     "evidence_ref": null,
     "status": "missing",
-    "reason": "No aerial imagery: No Vexcel tile available for (29.71720, -95.40180)",
+    "reason": "No aerial imagery: No Vexcel tile available for (29.71720, -95.40180); live Vexcel is off: disabled in offline/test mode",
     "note": null,
-    "updated_at": 1794715626.1074977
+    "updated_at": 1794733463.1125822
    }
   }
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 51,
-  "ts": 1794715626.1366107,
+  "ts": 1794733463.151969,
   "data": {
    "step": "vision_measurer",
    "name": "measure_parking",
@@ -942,9 +934,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 52,
-  "ts": 1794715626.1366107,
+  "ts": 1794733463.151969,
   "data": {
    "step": "vision_measurer",
    "name": "measure_parking",
@@ -955,9 +947,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 53,
-  "ts": 1794715626.1366107,
+  "ts": 1794733463.1529832,
   "data": {
    "step": "vision_measurer",
    "name": "measure_parking",
@@ -968,9 +960,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 54,
-  "ts": 1794715626.1366107,
+  "ts": 1794733463.1529832,
   "data": {
    "step": "vision_measurer",
    "name": "measure_parking",
@@ -981,9 +973,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 55,
-  "ts": 1794715626.1366107,
+  "ts": 1794733463.1529832,
   "data": {
    "step": "vision_measurer",
    "name": "measure_parking",
@@ -994,9 +986,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 56,
-  "ts": 1794715626.1366107,
+  "ts": 1794733463.1529832,
   "data": {
    "step": "vision_measurer",
    "name": "measure_parking",
@@ -1007,9 +999,9 @@
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 57,
-  "ts": 1794715626.1366107,
+  "ts": 1794733463.1529832,
   "data": {
    "step": "vision_measurer",
    "name": "measure_parking",
@@ -1020,9 +1012,9 @@
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 58,
-  "ts": 1794715626.1643183,
+  "ts": 1794733463.184214,
   "data": {
    "cell": {
     "building_id": "B-01",
@@ -1034,15 +1026,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.1500583
+    "updated_at": 1794733463.1691008
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 59,
-  "ts": 1794715626.1713157,
+  "ts": 1794733463.1920252,
   "data": {
    "cell": {
     "building_id": "B-02",
@@ -1054,15 +1046,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.1653137
+    "updated_at": 1794733463.1855068
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 60,
-  "ts": 1794715626.1774664,
+  "ts": 1794733463.198519,
   "data": {
    "cell": {
     "building_id": "B-03",
@@ -1074,15 +1066,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.1713157
+    "updated_at": 1794733463.1920252
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 61,
-  "ts": 1794715626.1834736,
+  "ts": 1794733463.2050483,
   "data": {
    "cell": {
     "building_id": "B-04",
@@ -1094,15 +1086,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.1774664
+    "updated_at": 1794733463.198519
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 62,
-  "ts": 1794715626.190005,
+  "ts": 1794733463.2111013,
   "data": {
    "cell": {
     "building_id": "B-05",
@@ -1114,15 +1106,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.1834736
+    "updated_at": 1794733463.2050483
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 63,
-  "ts": 1794715626.1967542,
+  "ts": 1794733463.2161021,
   "data": {
    "cell": {
     "building_id": "B-06",
@@ -1134,15 +1126,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.190005
+    "updated_at": 1794733463.2111013
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 64,
-  "ts": 1794715626.202305,
+  "ts": 1794733463.2216415,
   "data": {
    "cell": {
     "building_id": "B-08",
@@ -1154,15 +1146,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.1967542
+    "updated_at": 1794733463.2161021
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 65,
-  "ts": 1794715626.2098234,
+  "ts": 1794733463.2275605,
   "data": {
    "cell": {
     "building_id": "B-01",
@@ -1174,15 +1166,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.2033024
+    "updated_at": 1794733463.2216415
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 66,
-  "ts": 1794715626.2185724,
+  "ts": 1794733463.2469983,
   "data": {
    "cell": {
     "building_id": "B-02",
@@ -1194,15 +1186,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.2098234
+    "updated_at": 1794733463.2275605
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 67,
-  "ts": 1794715626.2271192,
+  "ts": 1794733463.2565827,
   "data": {
    "cell": {
     "building_id": "B-03",
@@ -1214,15 +1206,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.2185724
+    "updated_at": 1794733463.2469983
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 68,
-  "ts": 1794715626.2351155,
+  "ts": 1794733463.2663517,
   "data": {
    "cell": {
     "building_id": "B-04",
@@ -1234,15 +1226,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.2271192
+    "updated_at": 1794733463.2570984
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 69,
-  "ts": 1794715626.2436464,
+  "ts": 1794733463.2747514,
   "data": {
    "cell": {
     "building_id": "B-05",
@@ -1254,15 +1246,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.2351155
+    "updated_at": 1794733463.2663517
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 70,
-  "ts": 1794715626.2522368,
+  "ts": 1794733463.2851794,
   "data": {
    "cell": {
     "building_id": "B-06",
@@ -1274,15 +1266,15 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.2436464
+    "updated_at": 1794733463.2747514
    }
   }
  },
  {
   "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 71,
-  "ts": 1794715626.2621422,
+  "ts": 1794733463.2959752,
   "data": {
    "cell": {
     "building_id": "B-08",
@@ -1294,37 +1286,37 @@
     "status": "filled",
     "reason": null,
     "note": "fake",
-    "updated_at": 1794715626.2522368
+    "updated_at": 1794733463.2851794
    }
   }
  },
  {
   "type": "step_done",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 72,
-  "ts": 1794715626.2880478,
+  "ts": 1794733463.3262227,
   "data": {
    "step": "vision_measurer",
-   "step_id": "call_task_2_44656958",
+   "step_id": "call_task_2_61628796",
    "summary": "measured"
   }
  },
  {
   "type": "step_started",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 73,
-  "ts": 1794715626.3028014,
+  "ts": 1794733463.3481128,
   "data": {
    "step": "gap_analyst",
-   "step_id": "call_task_3_98545144",
+   "step_id": "call_task_3_61372638",
    "description": "Do gap_analyst"
   }
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
+  "study_id": "st-814aa0cd",
   "seq": 74,
-  "ts": 1794715626.3465564,
+  "ts": 1794733463.4106786,
   "data": {
    "step": "gap_analyst",
    "name": "check_coverage",
@@ -1332,1001 +1324,68 @@
   }
  },
  {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
+  "type": "gap_detected",
+  "study_id": "st-814aa0cd",
   "seq": 75,
-  "ts": 1794715626.357708,
-  "data": {
-   "cell": {
-    "building_id": "B-01",
-    "variable": "ev_chargers_installed",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.3515544
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 76,
-  "ts": 1794715626.357708,
-  "data": {
-   "building_id": "B-01",
-   "variable": "ev_chargers_installed",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 77,
-  "ts": 1794715626.3648677,
-  "data": {
-   "cell": {
-    "building_id": "B-01",
-    "variable": "ev_expansion_planned",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.3593078
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 78,
-  "ts": 1794715626.3648677,
-  "data": {
-   "building_id": "B-01",
-   "variable": "ev_expansion_planned",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 79,
-  "ts": 1794715626.372388,
-  "data": {
-   "cell": {
-    "building_id": "B-02",
-    "variable": "ev_chargers_installed",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.3663685
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 80,
-  "ts": 1794715626.3730576,
-  "data": {
-   "building_id": "B-02",
-   "variable": "ev_chargers_installed",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 81,
-  "ts": 1794715626.3811765,
-  "data": {
-   "cell": {
-    "building_id": "B-02",
-    "variable": "ev_expansion_planned",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.3730576
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 82,
-  "ts": 1794715626.3811765,
-  "data": {
-   "building_id": "B-02",
-   "variable": "ev_expansion_planned",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 83,
-  "ts": 1794715626.3884425,
-  "data": {
-   "cell": {
-    "building_id": "B-03",
-    "variable": "ev_chargers_installed",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.3821747
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 84,
-  "ts": 1794715626.3890026,
-  "data": {
-   "building_id": "B-03",
-   "variable": "ev_chargers_installed",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 85,
-  "ts": 1794715626.3958657,
-  "data": {
-   "cell": {
-    "building_id": "B-03",
-    "variable": "ev_expansion_planned",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.3890026
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 86,
-  "ts": 1794715626.3964021,
-  "data": {
-   "building_id": "B-03",
-   "variable": "ev_expansion_planned",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 87,
-  "ts": 1794715626.396945,
+  "ts": 1794733463.4166582,
   "data": {
    "building_id": "B-04",
    "variable": "parking_spaces",
    "source": "costar",
-   "reason": "CoStar record SAMPLE-0004 has no parking_spaces."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 88,
-  "ts": 1794715626.4019618,
-  "data": {
-   "cell": {
-    "building_id": "B-04",
-    "variable": "ev_chargers_installed",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.396945
-   }
+   "reason": "CoStar: not recorded in CoStar record SAMPLE-0004."
   }
  },
  {
   "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 89,
-  "ts": 1794715626.4019618,
-  "data": {
-   "building_id": "B-04",
-   "variable": "ev_chargers_installed",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 90,
-  "ts": 1794715626.4100566,
-  "data": {
-   "cell": {
-    "building_id": "B-04",
-    "variable": "ev_expansion_planned",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.4019618
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 91,
-  "ts": 1794715626.4100566,
-  "data": {
-   "building_id": "B-04",
-   "variable": "ev_expansion_planned",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 92,
-  "ts": 1794715626.4170513,
-  "data": {
-   "cell": {
-    "building_id": "B-05",
-    "variable": "ev_chargers_installed",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.4110541
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 93,
-  "ts": 1794715626.4170513,
-  "data": {
-   "building_id": "B-05",
-   "variable": "ev_chargers_installed",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 94,
-  "ts": 1794715626.4243677,
-  "data": {
-   "cell": {
-    "building_id": "B-05",
-    "variable": "ev_expansion_planned",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.4170513
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 95,
-  "ts": 1794715626.4243677,
-  "data": {
-   "building_id": "B-05",
-   "variable": "ev_expansion_planned",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 96,
-  "ts": 1794715626.4304085,
-  "data": {
-   "cell": {
-    "building_id": "B-06",
-    "variable": "ev_chargers_installed",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.4243677
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 97,
-  "ts": 1794715626.4304085,
-  "data": {
-   "building_id": "B-06",
-   "variable": "ev_chargers_installed",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 98,
-  "ts": 1794715626.4371817,
-  "data": {
-   "cell": {
-    "building_id": "B-06",
-    "variable": "ev_expansion_planned",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.4304085
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 99,
-  "ts": 1794715626.4371817,
-  "data": {
-   "building_id": "B-06",
-   "variable": "ev_expansion_planned",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 100,
-  "ts": 1794715626.4381857,
+  "study_id": "st-814aa0cd",
+  "seq": 76,
+  "ts": 1794733463.4166582,
   "data": {
    "building_id": "B-07",
    "variable": "surface_parking_pct",
    "source": "vexcel",
-   "reason": "No aerial imagery: No Vexcel tile available for (29.71720, -95.40180)"
+   "reason": "No aerial imagery: No Vexcel tile available for (29.71720, -95.40180); live Vexcel is off: disabled in offline/test mode"
   }
  },
  {
   "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 101,
-  "ts": 1794715626.4381857,
+  "study_id": "st-814aa0cd",
+  "seq": 77,
+  "ts": 1794733463.4172072,
   "data": {
    "building_id": "B-07",
    "variable": "est_surface_spaces",
    "source": "vexcel",
-   "reason": "No aerial imagery: No Vexcel tile available for (29.71720, -95.40180)"
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 102,
-  "ts": 1794715626.4424238,
-  "data": {
-   "cell": {
-    "building_id": "B-07",
-    "variable": "ev_chargers_installed",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.4381857
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 103,
-  "ts": 1794715626.4439383,
-  "data": {
-   "building_id": "B-07",
-   "variable": "ev_chargers_installed",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 104,
-  "ts": 1794715626.4499052,
-  "data": {
-   "cell": {
-    "building_id": "B-07",
-    "variable": "ev_expansion_planned",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.4445245
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 105,
-  "ts": 1794715626.4504716,
-  "data": {
-   "building_id": "B-07",
-   "variable": "ev_expansion_planned",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 106,
-  "ts": 1794715626.4566388,
-  "data": {
-   "cell": {
-    "building_id": "B-08",
-    "variable": "ev_chargers_installed",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.4510562
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 107,
-  "ts": 1794715626.4566388,
-  "data": {
-   "building_id": "B-08",
-   "variable": "ev_chargers_installed",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 108,
-  "ts": 1794715626.461792,
-  "data": {
-   "cell": {
-    "building_id": "B-08",
-    "variable": "ev_expansion_planned",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": null,
-    "status": "missing",
-    "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey.",
-    "note": null,
-    "updated_at": 1794715626.4566388
-   }
-  }
- },
- {
-  "type": "gap_detected",
-  "study_id": "st-575e1c71",
-  "seq": 109,
-  "ts": 1794715626.461792,
-  "data": {
-   "building_id": "B-08",
-   "variable": "ev_expansion_planned",
-   "source": "survey",
-   "reason": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant requests need the property manager); requires an approved phone survey."
+   "reason": "No aerial imagery: No Vexcel tile available for (29.71720, -95.40180); live Vexcel is off: disabled in offline/test mode"
   }
  },
  {
   "type": "step_done",
-  "study_id": "st-575e1c71",
-  "seq": 110,
-  "ts": 1794715626.4866285,
+  "study_id": "st-814aa0cd",
+  "seq": 78,
+  "ts": 1794733463.4532552,
   "data": {
    "step": "gap_analyst",
-   "step_id": "call_task_3_98545144",
-   "summary": "Survey B-01, B-05, B-08"
+   "step_id": "call_task_3_61372638",
+   "summary": "coverage reported"
   }
  },
  {
   "type": "step_started",
-  "study_id": "st-575e1c71",
-  "seq": 111,
-  "ts": 1794715626.504961,
-  "data": {
-   "step": "field_surveyor",
-   "step_id": "call_task_4_39733449",
-   "description": "Do field_surveyor"
-  }
- },
- {
-  "type": "tool_called",
-  "study_id": "st-575e1c71",
-  "seq": 112,
-  "ts": 1794715626.5492034,
-  "data": {
-   "step": "field_surveyor",
-   "name": "request_survey_call",
-   "args": {
-    "building_id": "B-01",
-    "questions": [
-     "How many EV charging ports does the property have today?",
-     "Do you plan to add EV chargers in the next 12 months?"
-    ]
-   }
-  }
- },
- {
-  "type": "tool_called",
-  "study_id": "st-575e1c71",
-  "seq": 113,
-  "ts": 1794715626.5492034,
-  "data": {
-   "step": "field_surveyor",
-   "name": "request_survey_call",
-   "args": {
-    "building_id": "B-05",
-    "questions": [
-     "How many EV charging ports does the property have today?",
-     "Do you plan to add EV chargers in the next 12 months?"
-    ]
-   }
-  }
- },
- {
-  "type": "tool_called",
-  "study_id": "st-575e1c71",
-  "seq": 114,
-  "ts": 1794715626.5492034,
-  "data": {
-   "step": "field_surveyor",
-   "name": "request_survey_call",
-   "args": {
-    "building_id": "B-08",
-    "questions": [
-     "How many EV charging ports does the property have today?",
-     "Do you plan to add EV chargers in the next 12 months?"
-    ]
-   }
-  }
- },
- {
-  "type": "approval_required",
-  "study_id": "st-575e1c71",
-  "seq": 115,
-  "ts": 1794715626.5541737,
-  "data": {
-   "action_id": "ap-2",
-   "kind": "survey",
-   "tool": "request_survey_call",
-   "args": {
-    "building_id": "B-01",
-    "questions": [
-     "How many EV charging ports does the property have today?",
-     "Do you plan to add EV chargers in the next 12 months?"
-    ]
-   },
-   "description": "A phone call to a real person. Approve only if the questions are appropriate.",
-   "allowed_decisions": [
-    "approve",
-    "reject"
-   ],
-   "round": 2,
-   "round_size": 3
-  }
- },
- {
-  "type": "approval_required",
-  "study_id": "st-575e1c71",
-  "seq": 116,
-  "ts": 1794715626.5541737,
-  "data": {
-   "action_id": "ap-3",
-   "kind": "survey",
-   "tool": "request_survey_call",
-   "args": {
-    "building_id": "B-05",
-    "questions": [
-     "How many EV charging ports does the property have today?",
-     "Do you plan to add EV chargers in the next 12 months?"
-    ]
-   },
-   "description": "A phone call to a real person. Approve only if the questions are appropriate.",
-   "allowed_decisions": [
-    "approve",
-    "reject"
-   ],
-   "round": 2,
-   "round_size": 3
-  }
- },
- {
-  "type": "approval_required",
-  "study_id": "st-575e1c71",
-  "seq": 117,
-  "ts": 1794715626.5541737,
-  "data": {
-   "action_id": "ap-4",
-   "kind": "survey",
-   "tool": "request_survey_call",
-   "args": {
-    "building_id": "B-08",
-    "questions": [
-     "How many EV charging ports does the property have today?",
-     "Do you plan to add EV chargers in the next 12 months?"
-    ]
-   },
-   "description": "A phone call to a real person. Approve only if the questions are appropriate.",
-   "allowed_decisions": [
-    "approve",
-    "reject"
-   ],
-   "round": 2,
-   "round_size": 3
-  }
- },
- {
-  "type": "call_transcript",
-  "study_id": "st-575e1c71",
-  "seq": 118,
-  "ts": 1794715633.0847976,
-  "data": {
-   "building_id": "B-05",
-   "call_id": "call-36acc4",
-   "contact_role": "Property manager",
-   "consent": true,
-   "transcript": [
-    {
-     "speaker": "agent",
-     "text": "Hi, this is an automated research assistant from UrbanLab calling about Sample Office 05 (placeholder). This call is recorded for research. Is it okay to ask a few short questions?",
-     "t": 0.0
-    },
-    {
-     "speaker": "contact",
-     "text": "Sure, go ahead.",
-     "t": 4.0
-    },
-    {
-     "speaker": "agent",
-     "text": "How many EV charging ports does the property have today?",
-     "t": 8.0
-    },
-    {
-     "speaker": "contact",
-     "text": "None right now.",
-     "t": 12.0
-    },
-    {
-     "speaker": "agent",
-     "text": "Do you plan to add EV chargers in the next 12 months?",
-     "t": 16.0
-    },
-    {
-     "speaker": "contact",
-     "text": "No, nothing planned at the moment.",
-     "t": 20.0
-    },
-    {
-     "speaker": "agent",
-     "text": "That's everything. Thank you for your time!",
-     "t": 24.0
-    }
-   ],
-   "duration_s": 28.0,
-   "stub": true
-  }
- },
- {
-  "type": "call_transcript",
-  "study_id": "st-575e1c71",
-  "seq": 119,
-  "ts": 1794715633.0979784,
-  "data": {
-   "building_id": "B-01",
-   "call_id": "call-0aa7c2",
-   "contact_role": "Property manager",
-   "consent": true,
-   "transcript": [
-    {
-     "speaker": "agent",
-     "text": "Hi, this is an automated research assistant from UrbanLab calling about Sample Office 01 (placeholder). This call is recorded for research. Is it okay to ask a few short questions?",
-     "t": 0.0
-    },
-    {
-     "speaker": "contact",
-     "text": "Sure, go ahead.",
-     "t": 4.0
-    },
-    {
-     "speaker": "agent",
-     "text": "How many EV charging ports does the property have today?",
-     "t": 8.0
-    },
-    {
-     "speaker": "contact",
-     "text": "We have 2 charging ports in the garage today.",
-     "t": 12.0
-    },
-    {
-     "speaker": "agent",
-     "text": "Do you plan to add EV chargers in the next 12 months?",
-     "t": 16.0
-    },
-    {
-     "speaker": "contact",
-     "text": "Yes, we've budgeted more chargers for next year.",
-     "t": 20.0
-    },
-    {
-     "speaker": "agent",
-     "text": "That's everything. Thank you for your time!",
-     "t": 24.0
-    }
-   ],
-   "duration_s": 28.0,
-   "stub": true
-  }
- },
- {
-  "type": "call_transcript",
-  "study_id": "st-575e1c71",
-  "seq": 120,
-  "ts": 1794715633.100514,
-  "data": {
-   "building_id": "B-08",
-   "call_id": "call-9c5785",
-   "contact_role": "Property manager",
-   "consent": true,
-   "transcript": [
-    {
-     "speaker": "agent",
-     "text": "Hi, this is an automated research assistant from UrbanLab calling about Sample Office 08 (placeholder). This call is recorded for research. Is it okay to ask a few short questions?",
-     "t": 0.0
-    },
-    {
-     "speaker": "contact",
-     "text": "Sure, go ahead.",
-     "t": 4.0
-    },
-    {
-     "speaker": "agent",
-     "text": "How many EV charging ports does the property have today?",
-     "t": 8.0
-    },
-    {
-     "speaker": "contact",
-     "text": "We have 4 charging ports in the garage today.",
-     "t": 12.0
-    },
-    {
-     "speaker": "agent",
-     "text": "Do you plan to add EV chargers in the next 12 months?",
-     "t": 16.0
-    },
-    {
-     "speaker": "contact",
-     "text": "Yes, we've budgeted more chargers for next year.",
-     "t": 20.0
-    },
-    {
-     "speaker": "agent",
-     "text": "That's everything. Thank you for your time!",
-     "t": 24.0
-    }
-   ],
-   "duration_s": 28.0,
-   "stub": true
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 121,
-  "ts": 1794715633.100514,
-  "data": {
-   "cell": {
-    "building_id": "B-05",
-    "variable": "ev_chargers_installed",
-    "value": 0,
-    "source": "survey",
-    "confidence": 0.9,
-    "evidence_ref": "STUB call-36acc4 @ 00:12: \"None right now.\"",
-    "status": "filled",
-    "reason": null,
-    "note": "Self-reported, unverified.",
-    "updated_at": 1794715633.0867982
-   }
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 122,
-  "ts": 1794715633.1119993,
-  "data": {
-   "cell": {
-    "building_id": "B-01",
-    "variable": "ev_chargers_installed",
-    "value": 2,
-    "source": "survey",
-    "confidence": 0.9,
-    "evidence_ref": "STUB call-0aa7c2 @ 00:12: \"We have 2 charging ports in the garage today.\"",
-    "status": "filled",
-    "reason": null,
-    "note": "Self-reported, unverified.",
-    "updated_at": 1794715633.1015131
-   }
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 123,
-  "ts": 1794715633.1309996,
-  "data": {
-   "cell": {
-    "building_id": "B-08",
-    "variable": "ev_chargers_installed",
-    "value": 4,
-    "source": "survey",
-    "confidence": 0.9,
-    "evidence_ref": "STUB call-9c5785 @ 00:12: \"We have 4 charging ports in the garage today.\"",
-    "status": "filled",
-    "reason": null,
-    "note": "Self-reported, unverified.",
-    "updated_at": 1794715633.1129992
-   }
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 124,
-  "ts": 1794715633.1369996,
-  "data": {
-   "cell": {
-    "building_id": "B-05",
-    "variable": "ev_expansion_planned",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": "STUB call-36acc4",
-    "status": "missing",
-    "reason": "Contact did not clearly answer.",
-    "note": null,
-    "updated_at": 1794715633.1309996
-   }
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 125,
-  "ts": 1794715633.1489966,
-  "data": {
-   "cell": {
-    "building_id": "B-01",
-    "variable": "ev_expansion_planned",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": "STUB call-0aa7c2",
-    "status": "missing",
-    "reason": "Contact did not clearly answer.",
-    "note": null,
-    "updated_at": 1794715633.1379979
-   }
-  }
- },
- {
-  "type": "cell_updated",
-  "study_id": "st-575e1c71",
-  "seq": 126,
-  "ts": 1794715633.1672757,
-  "data": {
-   "cell": {
-    "building_id": "B-08",
-    "variable": "ev_expansion_planned",
-    "value": null,
-    "source": "survey",
-    "confidence": null,
-    "evidence_ref": "STUB call-9c5785",
-    "status": "missing",
-    "reason": "Contact did not clearly answer.",
-    "note": null,
-    "updated_at": 1794715633.1489966
-   }
-  }
- },
- {
-  "type": "step_done",
-  "study_id": "st-575e1c71",
-  "seq": 127,
-  "ts": 1794715633.1979487,
-  "data": {
-   "step": "field_surveyor",
-   "step_id": "call_task_4_39733449",
-   "summary": "surveys done"
-  }
- },
- {
-  "type": "step_started",
-  "study_id": "st-575e1c71",
-  "seq": 128,
-  "ts": 1794715633.215035,
+  "study_id": "st-814aa0cd",
+  "seq": 79,
+  "ts": 1794733463.4754596,
   "data": {
    "step": "analyst",
-   "step_id": "call_task_5_36143112",
+   "step_id": "call_task_4_11071305",
    "description": "Do analyst"
   }
  },
  {
   "type": "tool_called",
-  "study_id": "st-575e1c71",
-  "seq": 129,
-  "ts": 1794715633.253926,
+  "study_id": "st-814aa0cd",
+  "seq": 80,
+  "ts": 1794733463.5426538,
   "data": {
    "step": "analyst",
    "name": "run_analysis",
@@ -2335,17 +1394,16 @@
  },
  {
   "type": "findings_ready",
-  "study_id": "st-575e1c71",
-  "seq": 130,
-  "ts": 1794715633.4973128,
+  "study_id": "st-814aa0cd",
+  "seq": 81,
+  "ts": 1794733465.2688415,
   "data": {
    "era_cutoff": 1990,
    "n_buildings": 8,
    "findings": [
     "Parking spaces (CoStar): buildings from before 1990 average 735.00 vs 1293.33 for 1990+ (difference -558.33 (95% CI -1004.17 to -65.83); n=4 vs 3). The interval excludes zero.",
     "Surface parking (% of lot): buildings from before 1990 average 70.00 vs 30.00 for 1990+ (difference +40.00 (95% CI 40.00 to 40.00); n=4 vs 3). The interval excludes zero.",
-    "Est. surface spaces (aerial): buildings from before 1990 average 120.00 vs 60.00 for 1990+ (difference +60.00 (95% CI 60.00 to 60.00); n=4 vs 3). The interval excludes zero.",
-    "EV charging ports installed: buildings from before 1990 average 2.00 vs 2.00 for 1990+ (difference +0.00; n=1 vs 2). Too few buildings in one group (n<2) to estimate uncertainty; treat as anecdotal."
+    "Est. surface spaces (aerial): buildings from before 1990 average 120.00 vs 60.00 for 1990+ (difference +60.00 (95% CI 60.00 to 60.00); n=4 vs 3). The interval excludes zero."
    ],
    "effects": [
     {
@@ -2398,19 +1456,6 @@
       60.0
      ],
      "mann_whitney_p": 0.025
-    },
-    {
-     "variable": "ev_chargers_installed",
-     "label": "EV charging ports installed",
-     "n": 3,
-     "n_older": 1,
-     "n_newer": 2,
-     "spearman_rho_vs_year_built": 0.5,
-     "spearman_p": 0.667,
-     "mean_older": 2.0,
-     "mean_newer": 2.0,
-     "diff_older_minus_newer": 0.0,
-     "diff_ci95": null
     }
    ],
    "by_decade": [
@@ -2548,53 +1593,53 @@
      "n": 1,
      "mean": 60.0,
      "ci95": null
-    },
-    {
-     "variable": "ev_chargers_installed",
-     "decade": 1970,
-     "n": 1,
-     "mean": 2.0,
-     "ci95": null
-    },
-    {
-     "variable": "ev_chargers_installed",
-     "decade": 1990,
-     "n": 1,
-     "mean": 0.0,
-     "ci95": null
-    },
-    {
-     "variable": "ev_chargers_installed",
-     "decade": 2010,
-     "n": 1,
-     "mean": 4.0,
-     "ci95": null
     }
    ],
    "chart_spec": {
     "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-    "title": "EV charging ports installed by decade built (mean, bootstrap 95% CI)",
+    "title": "Surface parking (% of lot) by decade built (mean, bootstrap 95% CI)",
     "data": {
      "values": [
       {
+       "decade": "1960s",
+       "mean": 70.0,
+       "lo": 70.0,
+       "hi": 70.0,
+       "n": 1
+      },
+      {
        "decade": "1970s",
-       "mean": 2.0,
-       "lo": 2.0,
-       "hi": 2.0,
+       "mean": 70.0,
+       "lo": 70.0,
+       "hi": 70.0,
+       "n": 2
+      },
+      {
+       "decade": "1980s",
+       "mean": 70.0,
+       "lo": 70.0,
+       "hi": 70.0,
        "n": 1
       },
       {
        "decade": "1990s",
-       "mean": 0.0,
-       "lo": 0.0,
-       "hi": 0.0,
+       "mean": 30.0,
+       "lo": 30.0,
+       "hi": 30.0,
+       "n": 1
+      },
+      {
+       "decade": "2000s",
+       "mean": 30.0,
+       "lo": 30.0,
+       "hi": 30.0,
        "n": 1
       },
       {
        "decade": "2010s",
-       "mean": 4.0,
-       "lo": 4.0,
-       "hi": 4.0,
+       "mean": 30.0,
+       "lo": 30.0,
+       "hi": 30.0,
        "n": 1
       }
      ]
@@ -2613,7 +1658,7 @@
        "y": {
         "field": "mean",
         "type": "quantitative",
-        "title": "EV charging ports installed"
+        "title": "Surface parking (% of lot)"
        },
        "tooltip": [
         {
@@ -2650,32 +1695,27 @@
     "parking_spaces: 1 of 8 buildings missing.",
     "surface_parking_pct: 1 of 8 buildings missing.",
     "est_surface_spaces: 1 of 8 buildings missing.",
-    "ev_chargers_installed: 5 of 8 buildings missing.",
-    "ev_expansion_planned: 8 of 8 buildings missing.",
-    "Survey values are self-reported by property managers and unverified.",
-    "Survey transcripts came from the telephony STUB, not real calls; do not report these values.",
-    "Property records come from the placeholder CoStar sample CSV, not the live CoStar API.",
-    "Aerial measurements are vision-model estimates of surface parking; structured garages are excluded.",
-    "Survey targets were chosen by the agent, not at random, so survey-based estimates may be biased."
+    "Property records come from the placeholder CoStar sample CSV, not the CoStar data kit.",
+    "Aerial measurements are vision-model estimates of surface parking; structured garages are excluded."
    ]
   }
  },
  {
   "type": "step_done",
-  "study_id": "st-575e1c71",
-  "seq": 131,
-  "ts": 1794715633.5188358,
+  "study_id": "st-814aa0cd",
+  "seq": 82,
+  "ts": 1794733465.4458644,
   "data": {
    "step": "analyst",
-   "step_id": "call_task_5_36143112",
+   "step_id": "call_task_4_11071305",
    "summary": "report"
   }
  },
  {
   "type": "study_completed",
-  "study_id": "st-575e1c71",
-  "seq": 132,
-  "ts": 1794715633.5421028,
+  "study_id": "st-814aa0cd",
+  "seq": 83,
+  "ts": 1794733465.6152344,
   "data": {
    "summary": "Study complete. See analyst findings."
   }

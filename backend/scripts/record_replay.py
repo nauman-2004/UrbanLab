@@ -21,7 +21,7 @@ import httpx
 
 REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "frontend" / "src" / "lib" / "replay" / "recorded-study.json"
-DEFAULT_Q = "How prepared are commercial office properties in Houston for EV adoption?"
+DEFAULT_Q = "Do older office buildings in Houston dedicate more land to surface parking?"
 
 
 def scrub(obj):

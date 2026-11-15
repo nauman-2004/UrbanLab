@@ -1,7 +1,7 @@
 """Offline end-to-end test: the real DeepAgents graph, real tools, real interrupts,
 driven by a scripted fake chat model (no API key, no network).
 
-LLM vision/extraction calls are monkeypatched; telephony stub runs as-is.
+The LLM vision call is monkeypatched.
 """
 
 from __future__ import annotations
@@ -22,14 +22,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config  # noqa: E402
 
 PLAN_ARGS = {
-    "hypothesis": "Older Houston offices have fewer EV charging ports than newer ones.",
+    "hypothesis": "Older Houston offices devote a larger share of their lot to surface parking than newer ones.",
     "variables": [
         {"name": "year_built", "source": "costar", "type": "int"},
         {"name": "parking_spaces", "source": "costar", "type": "int"},
         {"name": "surface_parking_pct", "source": "vexcel", "type": "float"},
         {"name": "est_surface_spaces", "source": "vexcel", "type": "int"},
-        {"name": "ev_chargers_installed", "source": "survey", "type": "int"},
-        {"name": "ev_expansion_planned", "source": "survey", "type": "bool"},
     ],
     "sample": {"city": "Houston", "property_type": "Office", "n": 8},
 }
@@ -62,7 +60,7 @@ class ScriptedModel(BaseChatModel):
         done = len(tool_msgs)
         if "Principal Investigator" in sys_text:
             tasks = [m for m in tool_msgs if m.name == "task"]
-            order = ["planner", "data_collector", "vision_measurer", "gap_analyst", "field_surveyor", "analyst"]
+            order = ["planner", "data_collector", "vision_measurer", "gap_analyst", "analyst"]
             if len(tasks) < len(order):
                 step = order[len(tasks)]
                 return AIMessage(content="", tool_calls=[self._tc("task", {"subagent_type": step, "description": f"Do {step}"}, len(tasks))])
@@ -94,13 +92,7 @@ class ScriptedModel(BaseChatModel):
         if "check_coverage" in sys_text:
             if not done:
                 return AIMessage(content="", tool_calls=[self._tc("check_coverage", {})])
-            return AIMessage(content="Survey B-01, B-05, B-08")
-        if "request_survey_call" in sys_text:
-            if not done:
-                qs = ["How many EV charging ports does the property have today?", "Do you plan to add EV chargers in the next 12 months?"]
-                return AIMessage(content="", tool_calls=[self._tc("request_survey_call", {"building_id": b, "questions": qs}, i)
-                                                          for i, b in enumerate(["B-01", "B-05", "B-08"])])
-            return AIMessage(content="surveys done")
+            return AIMessage(content="coverage reported")
         if "run_analysis" in sys_text:
             if not done:
                 return AIMessage(content="", tool_calls=[self._tc("run_analysis", {})])
@@ -114,7 +106,7 @@ def tmp_data(tmp_path, monkeypatch):
 
 
 def install_fakes(tmp_path, monkeypatch, costar_source: str | None = "sample"):
-    """Point data paths at tmp_path and replace the LLM vision/extraction calls with fakes.
+    """Point data paths at tmp_path and replace the LLM vision call with a fake.
 
     costar_source: tests pin the sample CSV (its coordinates match the bundled tiles), whatever .env says;
     None keeps URBANLAB_COSTAR_SOURCE from .env (the fake dev server).
@@ -137,21 +129,7 @@ def install_fakes(tmp_path, monkeypatch, costar_source: str | None = "sample"):
         return llm.ParkingMeasurement(est_spaces=120 if older else 60, surface_parking_pct=70.0 if older else 30.0,
                                       confidence=0.8, notes="fake")
 
-    def fake_extract(transcript, targets):
-        answers = []
-        for var in targets:
-            contact = [t for t in transcript if t["speaker"] == "contact"]
-            if var == "ev_chargers_installed":
-                turn = contact[1]
-                import re
-                n = re.search(r"(\d+)", turn["text"])
-                answers.append(llm.ExtractedAnswer(variable=var, value=float(n.group(1)) if n else 0.0, confidence=0.9, quote=turn["text"], t=turn["t"]))
-            else:
-                answers.append(llm.ExtractedAnswer(variable=var, value=None, confidence=0.2, quote=None, t=None))
-        return llm.TranscriptExtraction(answers=answers)
-
     monkeypatch.setattr(llm, "measure_parking_image", fake_measure)
-    monkeypatch.setattr(llm, "extract_survey_answers", fake_extract)
     return tmp_path
 
 
@@ -164,7 +142,7 @@ def test_full_pipeline(tmp_data):
     async def main() -> list[dict[str, Any]]:
         sid = "st-test"
         ch = events.create_channel(sid, asyncio.get_running_loop())
-        study = runner.Study(id=sid, question="How prepared are commercial office properties in Houston for EV adoption?")
+        study = runner.Study(id=sid, question="Do older office buildings in Houston dedicate more land to surface parking?")
         runner.STUDIES[sid] = study
         _, q = ch.subscribe()
         task = asyncio.create_task(runner.run_study(study, build_agent(model=ScriptedModel())))
@@ -178,9 +156,7 @@ def test_full_pipeline(tmp_data):
                 await asyncio.sleep(0.05)
                 if d["kind"] == "plan" and not plan_rejected:
                     plan_rejected = True
-                    runner.answer(study, d["action_id"], False, feedback="Add EV expansion plans.")
-                elif d["kind"] == "survey" and d["args"]["building_id"] == "B-08":
-                    runner.answer(study, d["action_id"], False)
+                    runner.answer(study, d["action_id"], False, feedback="Also measure surface spaces.")
                 else:
                     runner.answer(study, d["action_id"], True)
             if ev["type"] in events.TERMINAL:
@@ -193,11 +169,12 @@ def test_full_pipeline(tmp_data):
     print("\n".join(f"{e['type']}: {json.dumps(e['data'])[:140]}" for e in seen if e["type"] != "cell_updated"))
     assert types[-1] == "study_completed", seen[-1]
     approvals = [e["data"] for e in seen if e["type"] == "approval_required"]
-    assert [a["kind"] for a in approvals].count("plan") == 2  # rejected once, then approved
-    assert [a["kind"] for a in approvals].count("survey") == 3
-    for t in ["step_started", "step_done", "plan_ready", "cell_updated", "gap_detected", "call_transcript", "findings_ready"]:
+    assert [a["kind"] for a in approvals] == ["plan", "plan"]  # rejected once, then approved; no other gates
+    for t in ["step_started", "step_done", "plan_ready", "cell_updated", "gap_detected", "findings_ready"]:
         assert t in types, f"missing {t}"
-    assert types.count("call_transcript") == 2  # B-08 rejected -> no call
+    assert "call_transcript" not in types
+    assert {e["data"]["step"] for e in seen if e["type"] == "step_started"} == {
+        "planner", "data_collector", "vision_measurer", "gap_analyst", "analyst"}
 
     store = get_store("st-test")
     snap = store.snapshot()
@@ -209,9 +186,10 @@ def test_full_pipeline(tmp_data):
     assert by[("B-04", "parking_spaces")]["status"] == "missing"  # blank in CSV -> missing, not invented
     assert by[("B-07", "surface_parking_pct")]["status"] == "missing"  # no tile
     assert "No aerial imagery" in by[("B-07", "surface_parking_pct")]["reason"]
-    assert by[("B-01", "ev_chargers_installed")]["source"] == "survey"
-    assert by[("B-01", "ev_chargers_installed")]["evidence_ref"].startswith("STUB call-")
-    assert by[("B-08", "ev_chargers_installed")]["reason"] == "Survey call not approved by the reviewer."
-    assert by[("B-01", "ev_expansion_planned")]["status"] == "missing"  # extraction returned null
+    assert by[("B-01", "surface_parking_pct")]["source"] == "vexcel"
+    assert by[("B-01", "surface_parking_pct")]["status"] == "filled"
+    assert all(c["source"] in {"costar", "vexcel"} for c in snap["cells"])
     assert snap["findings"]["chart_spec"] is not None
+    assert "Surface parking" in snap["findings"]["chart_spec"]["title"]  # aerial outcome is the charted one
+    assert not any("urvey" in lim for lim in snap["findings"]["limitations"])
     assert json.loads((tmp_data / "dataset.json").read_text())["study_id"] == "st-test"

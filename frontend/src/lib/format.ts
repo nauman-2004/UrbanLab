@@ -20,13 +20,3 @@ export const fmtClock = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 };
-
-export const fmtCallTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-
-/** Split a survey evidence ref like `STUB call-1a2b @ 00:12: "We have 4…"` into parts. */
-export function parseSurveyEvidence(ref: string | null): { callId?: string; at?: string; quote?: string; stub: boolean } {
-  if (!ref) return { stub: false };
-  const m = ref.match(/^(STUB )?(call-[\w-]+)(?: @ (\d+:\d+))?(?:: "([\s\S]*)")?$/);
-  if (!m) return { stub: ref.startsWith("STUB") };
-  return { stub: !!m[1], callId: m[2], at: m[3], quote: m[4] };
-}

@@ -7,7 +7,7 @@ import { ReplaySource } from "../source/replay";
 import type { SourceStatus, StudySource } from "../source/types";
 import { initialState, studyReducer, type StudyState } from "./reducer";
 
-export const DEFAULT_QUESTION = "How prepared are commercial office properties in Houston for EV adoption?";
+export const DEFAULT_QUESTION = "Do older office buildings in Houston dedicate more land to surface parking?";
 
 interface StudyContextValue {
   state: StudyState;
@@ -18,14 +18,12 @@ interface StudyContextValue {
   /** Study clock (ms), refreshed ~4×/s while running. */
   clock: number;
   selectedId: string | null;
-  drawerCallId: string | null;
   start(question: string): void;
   togglePause(): void;
   setSpeed(n: number): void;
   answer(decisions: ApprovalDecision[]): Promise<void>;
   resolveUrl(path: string | undefined): string | null;
   select(id: string | null): void;
-  openCall(callId: string | null): void;
 }
 
 const SOURCE_KIND: "replay" | "live" = process.env.NEXT_PUBLIC_STUDY_SOURCE === "live" ? "live" : "replay";
@@ -40,7 +38,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
   const [speed, setSpeedState] = useState(1);
   const [clock, setClock] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [drawerCallId, setDrawerCallId] = useState<string | null>(null);
   const sourceRef = useRef<StudySource | null>(null);
 
   useEffect(() => {
@@ -66,7 +63,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
   const start = useCallback((question: string) => {
     dispatch({ type: "reset", question });
     setSelectedId(null);
-    setDrawerCallId(null);
     sourceRef.current?.start(question);
   }, []);
 
@@ -106,16 +102,14 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       speed,
       clock,
       selectedId,
-      drawerCallId,
       start,
       togglePause,
       setSpeed,
       answer,
       resolveUrl,
       select: setSelectedId,
-      openCall: setDrawerCallId,
     }),
-    [state, status, statusDetail, speed, clock, selectedId, drawerCallId, start, togglePause, setSpeed, answer, resolveUrl],
+    [state, status, statusDetail, speed, clock, selectedId, start, togglePause, setSpeed, answer, resolveUrl],
   );
 
   return <StudyContext.Provider value={value}>{children}</StudyContext.Provider>;

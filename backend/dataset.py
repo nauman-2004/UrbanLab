@@ -18,7 +18,7 @@ from typing import Any, Literal
 import config
 import events
 
-Source = Literal["costar", "vexcel", "survey"]
+Source = Literal["costar", "vexcel"]
 
 # Variables the pipeline knows how to collect. The planner must pick from here,
 # so every planned variable has a tool that can actually fill it.
@@ -28,22 +28,11 @@ VARIABLE_CATALOG: dict[str, dict[str, str]] = {
     "rba_sf": {"source": "costar", "type": "float", "label": "Rentable building area (sf)"},
     "lot_sf": {"source": "costar", "type": "float", "label": "Lot size (sf)"},
     "building_class": {"source": "costar", "type": "category", "label": "Building class"},
-    "occupancy_pct": {"source": "costar", "type": "float", "label": "Occupancy (%)"},
     "parking_spaces": {"source": "costar", "type": "int", "label": "Parking spaces (CoStar)"},
     "parking_ratio": {"source": "costar", "type": "float", "label": "Parking ratio (/1,000 sf)"},
     # Vexcel aerial imagery measured by the vision model
     "est_surface_spaces": {"source": "vexcel", "type": "int", "label": "Est. surface spaces (aerial)"},
     "surface_parking_pct": {"source": "vexcel", "type": "float", "label": "Surface parking (% of lot)"},
-    # Phone survey of the property manager
-    "ev_chargers_installed": {"source": "survey", "type": "int", "label": "EV charging ports installed"},
-    "ev_expansion_planned": {"source": "survey", "type": "bool", "label": "EV charger expansion planned (12 mo)"},
-    "tenant_ev_requests": {"source": "survey", "type": "bool", "label": "Tenants have requested EV charging"},
-}
-
-# Why a variable can't be observed digitally — used by check_coverage.
-UNOBSERVABLE_REASON = {
-    "survey": "Not recorded in CoStar and not visible from aerial imagery (chargers, plans and tenant "
-    "requests need the property manager); requires an approved phone survey.",
 }
 
 

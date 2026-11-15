@@ -1,10 +1,9 @@
-"""The DeepAgents graph: a Principal Investigator orchestrator + six subagents.
+"""The DeepAgents graph: a Principal Investigator orchestrator + five subagents.
 
-Two human gates, both via DeepAgents `interrupt_on` (HumanInTheLoopMiddleware):
-  1. planner -> submit_plan            (approve / edit / reject)
-  2. field_surveyor -> request_survey_call  (approve / reject)
-A `when` predicate on each gate skips the interrupt for calls that would be
-refused anyway (invalid plan, over the call limit), so humans only review real actions.
+One human gate via DeepAgents `interrupt_on` (HumanInTheLoopMiddleware):
+  planner -> submit_plan  (approve / edit / reject)
+A `when` predicate skips the interrupt for plans that would be refused anyway
+(invalid plan), so humans only review real plans.
 """
 
 from __future__ import annotations
@@ -22,8 +21,6 @@ _CATALOG = json.dumps({k: {"source": v["source"], "type": v["type"], "label": v[
 
 PLAN_GATE = {"allowed_decisions": ["approve", "edit", "reject"], "when": t.plan_needs_review,
              "description": "Review the research plan before any data is collected."}
-SURVEY_GATE = {"allowed_decisions": ["approve", "reject"], "when": t.survey_call_needs_review,
-               "description": "A phone call to a real person. Approve only if the questions are appropriate."}
 
 SUBAGENTS = [
     {
@@ -33,7 +30,8 @@ SUBAGENTS = [
             "You design built-environment studies. Turn the question into a plan and call submit_plan ONCE.\n"
             "- hypothesis: one falsifiable sentence about how the outcome varies with building age.\n"
             "- variables: choose ONLY from this catalog, using the catalog's source and type. Always include year_built. "
-            "Include the survey variables when the outcome (e.g. EV charging) can't be seen in records or imagery.\n"
+            "Only these variables can be collected (CoStar records and aerial imagery). If the question's outcome "
+            "isn't among them, study the closest measurable proxy and say so in the hypothesis.\n"
             f"{_CATALOG}\n"
             f"- sample: city, property_type as CoStar names it (e.g. 'Office'), n (default {config.DEFAULT_SAMPLE_N}).\n"
             "  The CoStar data covers only Houston and Los Angeles. If the question is about another city, "
@@ -69,24 +67,10 @@ SUBAGENTS = [
         "name": "gap_analyst",
         "description": "Checks dataset coverage against the plan and explains what is missing and why.",
         "system_prompt": (
-            "Call check_coverage once. Report, per building, the missing variables with the reason, and list which "
-            "buildings need a phone survey. Recommend at most max_survey_calls buildings to survey, preferring a mix "
-            "of construction decades. Do not invent reasons beyond the tool output."
+            "Call check_coverage once. Report the coverage and, per building, the missing variables with the reason. "
+            "Do not invent reasons beyond the tool output."
         ),
         "tools": [t.check_coverage],
-    },
-    {
-        "name": "field_surveyor",
-        "description": "Places human-approved phone surveys to property managers to fill survey variables.",
-        "system_prompt": (
-            "For each building you are asked to survey, call request_survey_call(building_id, questions) with 2-4 short, "
-            "neutral questions, one per survey variable (e.g. 'How many EV charging ports does the property have today?', "
-            "'Do you plan to add EV chargers in the next 12 months?', 'Have tenants requested EV charging?'). "
-            "Each call needs human approval. If a call is rejected, do NOT retry it; move on. "
-            "Reply with what was filled and what stayed missing."
-        ),
-        "tools": [t.request_survey_call],
-        "interrupt_on": {"request_survey_call": SURVEY_GATE},
     },
     {
         "name": "analyst",
@@ -105,13 +89,11 @@ Run the study by delegating with the `task` tool, in this order, one subagent at
 1. planner - pass the research question. Wait for the approved plan.
 2. data_collector - pass city, property_type and n from the approved plan.
 3. vision_measurer - pass every building_id with its lat/lng exactly as returned.
-4. gap_analyst - ask for coverage and survey recommendations.
-5. field_surveyor - pass the recommended building_ids (at most {max_calls}) and the survey variables to ask about.
-   Skip this step if no survey variables are missing.
-6. analyst - ask for the final analysis.
+4. gap_analyst - ask for the coverage report.
+5. analyst - ask for the final analysis.
 Track progress with write_todos. Never invent data values: every number comes from a tool via a subagent.
 If a step fails, note it and continue; missing data is recorded as missing. Finish with a 3-5 sentence summary
-that cites the analyst's numbers and limitations.""".format(max_calls=config.SURVEY_MAX_CALLS)
+that cites the analyst's numbers and limitations."""
 
 
 def build_agent(model=None, checkpointer=None):
@@ -120,7 +102,7 @@ def build_agent(model=None, checkpointer=None):
         tools=[],
         system_prompt=ORCHESTRATOR_PROMPT,
         subagents=SUBAGENTS,
-        interrupt_on={"submit_plan": PLAN_GATE, "request_survey_call": SURVEY_GATE},
+        interrupt_on={"submit_plan": PLAN_GATE},
         checkpointer=checkpointer or MemorySaver(),
         name="principal_investigator",
     )

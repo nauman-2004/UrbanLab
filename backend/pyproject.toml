@@ -16,7 +16,6 @@ dependencies = [
     "python-dotenv>=1.0",
     "pillow>=10.0",
     "langchain-google-genai>=4.5.0",
-    "langchain-openrouter>=0.2.9",
     "urbanlab-costar",
 ]
 

@@ -8,14 +8,14 @@
  */
 
 /** Systems that can produce a value (backend `Source`). */
-export type Source = "costar" | "vexcel" | "survey";
+export type Source = "costar" | "vexcel";
 
 /** One variable in the approved plan (from the backend's VARIABLE_CATALOG). */
 export interface PlanVariable {
-  name: string; // e.g. "ev_chargers_installed"
+  name: string; // e.g. "surface_parking_pct"
   source: Source;
   type: "int" | "float" | "bool" | "category" | string;
-  label: string; // e.g. "EV charging ports installed"
+  label: string; // e.g. "Surface parking (% of lot)"
 }
 
 export interface StudyPlan {
@@ -51,7 +51,7 @@ export interface Cell {
   value: number | string | null;
   source: Source;
   confidence: number | null;
-  /** e.g. "CoStar #1084", "Vexcel tile x.png", 'call-1a2b @ 00:12: "We have 4…"' */
+  /** e.g. "CoStar kit #1084", "Vexcel tile x.png" */
   evidence_ref: string | null;
   status: "filled" | "missing";
   reason: string | null;
@@ -66,8 +66,8 @@ export interface Gap {
   reason: string;
 }
 
-/** The six Deep Agents subagents, in the order the orchestrator runs them. */
-export type StepName = "planner" | "data_collector" | "vision_measurer" | "gap_analyst" | "field_surveyor" | "analyst";
+/** The five Deep Agents subagents, in the order the orchestrator runs them. */
+export type StepName = "planner" | "data_collector" | "vision_measurer" | "gap_analyst" | "analyst";
 
 export interface Step {
   name: StepName | string;
@@ -79,7 +79,7 @@ export interface Step {
 /** Human-in-the-loop interrupt (DeepAgents `interrupt_on`), one per gated tool call. */
 export interface Approval {
   action_id: string;
-  kind: "plan" | "survey" | "tool";
+  kind: "plan" | "tool";
   tool: string;
   args: Record<string, unknown>;
   description: string;
@@ -88,24 +88,6 @@ export interface Approval {
   round: number;
   round_size: number;
   status: "pending" | "approved" | "rejected";
-}
-
-export interface Utterance {
-  speaker: "agent" | "contact";
-  text: string;
-  /** seconds into the call */
-  t: number;
-}
-
-export interface Call {
-  call_id: string;
-  building_id: string;
-  contact_role: string;
-  consent: boolean;
-  transcript: Utterance[];
-  duration_s: number;
-  /** true while telephony.start_call() is the scripted stub */
-  stub: boolean;
 }
 
 /** One outcome compared between older and newer buildings (analysis.py). */
@@ -147,7 +129,7 @@ export interface Findings {
 export interface LogEntry {
   id: number;
   at: number;
-  kind: "step" | "tool" | "gap" | "approval" | "cell" | "call" | "analysis" | "info" | "error";
+  kind: "step" | "tool" | "gap" | "approval" | "cell" | "analysis" | "info" | "error";
   text: string;
   detail?: string;
   tag?: string;

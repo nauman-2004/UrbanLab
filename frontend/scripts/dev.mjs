@@ -1,7 +1,7 @@
 // One command for the whole app: starts the LangChain agent backend, waits until it is up,
 // then starts the frontend connected to it. Both logs stream here; Ctrl+C stops both.
 //
-//   npm run dev            real models via OpenRouter (~30 requests per study)
+//   npm run dev            real models via the Google Gemini API (~30 requests per study)
 //   npm run dev:fake       scripted test model: no API key, no quota
 //   npm run dev:demo       frontend only, replaying a recorded study
 import { spawn, spawnSync } from "node:child_process";
@@ -69,12 +69,15 @@ async function healthy() {
 if (mode !== "demo") {
   if (mode === "live") {
     const env = existsSync(path.resolve(frontend, "..", ".env")) ? readFileSync(path.resolve(frontend, "..", ".env"), "utf8") : "";
-    if (!/^OPENROUTER_API_KEY=\S/m.test(env)) {
-      console.warn("⚠ OPENROUTER_API_KEY is empty in the repo-root .env. Add your key, or run `npm run dev:fake`.");
+    if (!/^GOOGLE_API_KEY=\S/m.test(env)) {
+      console.warn("⚠ GOOGLE_API_KEY is empty in the repo-root .env. Add your Gemini API key, or run `npm run dev:fake`.");
     }
   }
-  if (await healthy()) {
-    console.log(`Agent backend already running at ${API}; using it.`);
+  const running = await healthy();
+  if (running) {
+    // A backend left over from an earlier session keeps its old code and .env; restart it to pick up changes.
+    console.log(`Agent backend already running at ${API}; using it (CoStar source: ${running.costar_source}).`);
+    console.log("  If you changed backend code or .env, stop that process and run this again.");
   } else {
     const app = mode === "fake" ? "tests.fake_server:app" : "main:app";
     console.log(`Starting the agent backend (${app})...`);
@@ -88,7 +91,7 @@ if (mode !== "demo") {
       console.error(`The agent backend didn't come up on ${API} within 2 minutes.`);
       shutdown(1);
     }
-    console.log(`Agent backend ready · model ${info.model}`);
+    console.log(`Agent backend ready · model ${info.model} · CoStar source: ${info.costar_source}`);
   }
 }
 

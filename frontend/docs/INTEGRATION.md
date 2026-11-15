@@ -1,6 +1,6 @@
 # UrbanLab — Frontend ⇄ Agent Backend
 
-The frontend never calls CoStar, Vexcel, the LLM or telephony directly. The **agent backend**
+The frontend never calls CoStar, Vexcel or the LLM directly. The **agent backend**
 (`backend/`, LangChain Deep Agents) runs the study and streams its progress as events; the UI is a pure
 function of that stream. The backend is the source of truth: the plan's variables, the sample, every
 value and its provenance all arrive as events. Nothing about the study is hard-coded in the UI.
@@ -52,8 +52,7 @@ Every event is `{type, study_id, seq, ts, data}`:
 | `building_updated` | `{building_id, aerial_url}` | aerial tile in the building panel |
 | `cell_updated` | `{cell: {building_id, variable, value, source, confidence, evidence_ref, status, reason, note, updated_at}}` | table, building panel |
 | `gap_detected` | `{building_id, variable, source, reason}` | gap banner, map |
-| `approval_required` | `{action_id, kind: "plan"\|"survey", tool, args, description, allowed_decisions, round, round_size}` | approval dialog |
-| `call_transcript` | `{building_id, call_id, contact_role, consent, transcript:[{speaker, text, t}], duration_s, stub}` | call card + transcript drawer |
+| `approval_required` | `{action_id, kind: "plan", tool, args, description, allowed_decisions, round, round_size}` | approval dialog |
 | `findings_ready` | `{findings[], effects[], by_decade[], chart_spec, limitations[], era_cutoff, n_buildings}` | Findings page |
 | `study_completed` / `study_failed` | `{summary}` / `{error}` | summary, status |
 
@@ -61,10 +60,8 @@ Rules the UI relies on:
 
 1. **Statistics are server-side.** `analysis.py` computes every number from filled cells; the Findings page renders them as-is.
 2. **Missing is explicit.** A cell with `status: "missing"` always has a `reason`; `"Not yet collected."` is the placeholder before a tool runs.
-3. **Survey values are self-reported.** They're shown as unverified, with the quote from `evidence_ref` (`call-… @ mm:ss: "…"`).
-   `evidence_ref` starting with `STUB` means the telephony stub produced it.
-4. **Approvals come in rounds.** All `approval_required` events from one pause share `round`; the dialog shows them together
-   (one plan review, or one card per phone call that can be approved or declined individually).
+3. **Approvals come in rounds.** All `approval_required` events from one pause share `round`; today the only gate is
+   the plan review.
 
 ## Replay mode
 

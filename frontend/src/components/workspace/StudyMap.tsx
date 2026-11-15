@@ -14,15 +14,10 @@ const W = 1000;
 const H = 620;
 const PAD = 70;
 
-type PinState = "pending" | "observed" | "gap" | "queued" | "surveyed";
+type PinState = "pending" | "observed" | "gap";
 
 export function buildingState(s: StudyState, id: string): PinState {
   const vars = s.plan?.variables ?? [];
-  const survey = vars.filter((v) => v.source === "survey");
-  if (survey.some((v) => s.cells[cellKey(id, v.name)]?.status === "filled")) return "surveyed";
-  const approved = s.approvals.some((a) => a.kind === "survey" && a.args.building_id === id && a.status === "approved");
-  const called = Object.values(s.calls).some((c) => c.building_id === id);
-  if (approved && !called) return "queued";
   if (s.gaps.some((g) => g.building_id === id)) return "gap";
   if (vars.some((v) => s.cells[cellKey(id, v.name)]?.status === "filled")) return "observed";
   return "pending";
@@ -32,8 +27,6 @@ const FILL: Record<PinState, string> = {
   pending: "#3b4270",
   observed: "var(--color-costar)",
   gap: "#0c1028",
-  queued: "#0c1028",
-  surveyed: "var(--color-voice)",
 };
 
 function projector(points: { lat: number; lng: number }[]) {
@@ -97,15 +90,14 @@ export function StudyMap({ activeId }: { activeId: string | null }) {
             >
               <title>{`${p.id} · ${p.b.name ?? ""}`}</title>
               {active && <circle cx={p.x} cy={p.y} r={70} fill="url(#glow)" />}
-              {p.st === "queued" && <circle cx={p.x} cy={p.y} r={20} fill="none" stroke="var(--color-voice)" strokeWidth="4" className="animate-pulse-ring origin-center [transform-box:fill-box]" />}
               <circle cx={p.x} cy={p.y} r={34} fill="transparent" />
               <circle
                 cx={p.x}
                 cy={p.y}
                 r={active ? 20 : 15}
                 fill={FILL[p.st]}
-                stroke={p.st === "gap" ? "var(--color-gap)" : p.st === "queued" ? "var(--color-voice)" : active ? "var(--color-accent2)" : "#0c1028"}
-                strokeWidth={p.st === "gap" || p.st === "queued" ? 5 : active ? 6 : 4}
+                stroke={p.st === "gap" ? "var(--color-gap)" : active ? "var(--color-accent2)" : "#0c1028"}
+                strokeWidth={p.st === "gap" ? 5 : active ? 6 : 4}
                 strokeDasharray={p.st === "gap" ? "7 5" : undefined}
               />
               <text x={p.x} y={p.y + (active ? 44 : 36)} textAnchor="middle" fill={active ? "#e8eaf6" : "#8c92b6"} fontSize={active ? 24 : 18} fontWeight="600" paintOrder="stroke" stroke="#0c1028" strokeWidth="7">
@@ -118,9 +110,7 @@ export function StudyMap({ activeId }: { activeId: string | null }) {
       {pins.length === 0 && <div className="absolute inset-0 grid place-items-center text-xs text-dim">Buildings appear here as CoStar returns the sample.</div>}
       <div className="absolute bottom-2.5 left-2.5 flex flex-wrap gap-x-2.5 gap-y-1 rounded-[9px] border border-line2 bg-[#0d1126]/90 px-2.5 py-1.5 text-[10.5px] text-muted">
         <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-costar" />Observed</span>
-        <span className="flex items-center gap-1.5"><i className="size-2 rounded-full border-2 border-dashed border-gap" />Survey gap</span>
-        <span className="flex items-center gap-1.5"><i className="size-2 rounded-full border-2 border-voice" />Call approved</span>
-        <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-voice" />Surveyed</span>
+        <span className="flex items-center gap-1.5"><i className="size-2 rounded-full border-2 border-dashed border-gap" />Data gap</span>
       </div>
     </div>
   );

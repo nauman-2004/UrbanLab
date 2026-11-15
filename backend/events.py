@@ -5,7 +5,7 @@ SSE client that connects late (or reconnects) gets the full stream replayed.
 
 Event types (see README):
   step_started, step_done, plan_ready, cell_updated, gap_detected,
-  approval_required, call_transcript, findings_ready,
+  approval_required, findings_ready,
   plus study_completed / study_failed so clients know when to stop listening.
 """
 

@@ -5,7 +5,6 @@ import { fmtClock } from "@/lib/format";
 import { useStudy } from "@/lib/state/StudyProvider";
 import type { LogEntry } from "@/lib/types";
 import { Card, CardHeader } from "../ui/Card";
-import { InterviewMini } from "./InterviewMini";
 
 const KIND_COLOR: Record<LogEntry["kind"], string> = {
   step: "text-accent2",
@@ -13,7 +12,6 @@ const KIND_COLOR: Record<LogEntry["kind"], string> = {
   gap: "text-gap",
   approval: "text-unverified",
   cell: "text-voice",
-  call: "text-voice",
   analysis: "text-accent2",
   info: "text-muted",
   error: "text-gap",
@@ -45,7 +43,6 @@ export function AgentActivity() {
           </li>
         ))}
       </ol>
-      <InterviewMini />
     </Card>
   );
 }

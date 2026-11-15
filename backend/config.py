@@ -23,12 +23,10 @@ def _flag(name: str, default: str = "0") -> bool:
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
 
 
-# Models (LangChain "provider:model" strings), served through OpenRouter by default.
-# The agent model needs tool calling; the vision/extraction model needs image input + structured output.
-MODEL = os.getenv("URBANLAB_MODEL", "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free")
-_MULTIMODAL_DEFAULT = "openrouter:nvidia/nemotron-3.5-super-vl:free"
-VISION_MODEL = os.getenv("URBANLAB_VISION_MODEL", _MULTIMODAL_DEFAULT)
-EXTRACTION_MODEL = os.getenv("URBANLAB_EXTRACTION_MODEL", _MULTIMODAL_DEFAULT)
+# Models (LangChain "provider:model" strings), served by the Google Gemini API (GOOGLE_API_KEY).
+# The agent model needs tool calling; the vision model needs image input + structured output.
+MODEL = os.getenv("URBANLAB_MODEL", "google_genai:gemini-3.8-flash")
+VISION_MODEL = os.getenv("URBANLAB_VISION_MODEL", "google_genai:gemini-3.8-flash")
 
 # Paths
 DATA_DIR = _path("URBANLAB_DATA_DIR", "data")
@@ -48,6 +46,5 @@ MATTERPORT_LINKS = _flag("URBANLAB_MATTERPORT_LINKS")
 DEMO_MODE = _flag("DEMO_MODE")
 # Total seconds a cached CoStar + vision replay should take in DEMO_MODE.
 DEMO_REPLAY_SECONDS = float(os.getenv("DEMO_REPLAY_SECONDS", "20"))
-SURVEY_MAX_CALLS = int(os.getenv("SURVEY_MAX_CALLS", "3"))
 DEFAULT_SAMPLE_N = int(os.getenv("DEFAULT_SAMPLE_N", "8"))
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]

@@ -19,7 +19,6 @@ from .budget import RequestBudget
 from .config import Settings
 from .http import ApiClient
 from .kit import KitArchive, PropertyRepository, load_field_map
-from .kit import tenancy
 from .kit.repository import normalize_id
 from .matterport import MatterportAdapter, MatterportClient, ModelsIndex
 from .research.planner import Capabilities
@@ -73,13 +72,6 @@ def matterport_links(repo: PropertyRepository) -> dict[str, list[str]]:
     return out
 
 
-def _kit_joins(repo: PropertyRepository | None) -> tuple[frozenset[str], dict[str, str]]:
-    if repo is None:
-        return frozenset(), {"tenancy": "CoStar kit not configured"}
-    ok, why = tenancy.tenancy_available(repo)
-    return (frozenset({"tenancy"}), {}) if ok else (frozenset(), {"tenancy": why})
-
-
 def _synthetic(settings: Settings) -> Runtime:
     stack = ExitStack()
     tmp = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="urbanlab-synthetic-")))
@@ -93,11 +85,10 @@ def _synthetic(settings: Settings) -> Runtime:
                                          RequestBudget("matterport", 1000, 1000.0), max_retries=0))
     repo = PropertyRepository(kit, fmap)
     links = matterport_links(repo)
-    joins, join_reasons = _kit_joins(repo)
     caps = Capabilities(kit_ready=True, kit_fields=fmap.property_fields(), vexcel="offline",
                         vexcel_reason="synthetic fixtures", matterport_index=True, matterport_api="offline",
                         matterport_reason="synthetic fixtures", budgets={"vexcel": 0, "matterport": 0},
-                        max_retries=0, kit_joins=joins, kit_join_reasons=join_reasons)
+                        max_retries=0)
     return Runtime("synthetic", Adapters(repo, VexcelAdapter(vexcel), MatterportAdapter(index, mclient, links)),
                    caps, _stack=stack)
 
@@ -127,9 +118,7 @@ def _real(settings: Settings) -> Runtime:
             problems.append(f"models index unavailable: {e}")
     vexcel = VexcelAdapter(VexcelClient.from_settings(settings))
     mclient = MatterportClient.from_settings(settings)
-    joins, join_reasons = _kit_joins(repo)
-    caps = Capabilities.from_settings(settings, kit_fields, repo is not None, index is not None or bool(links),
-                                      joins, join_reasons)
+    caps = Capabilities.from_settings(settings, kit_fields, repo is not None, index is not None or bool(links))
     mp = MatterportAdapter(index, mclient, links) if (index or links) else None
     adapters = Adapters(repo, vexcel, mp) if repo else None
     return Runtime("real", adapters, caps, problems, _stack=stack)
