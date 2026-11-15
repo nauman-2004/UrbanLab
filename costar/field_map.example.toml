@@ -1,0 +1,52 @@
+# Field map TEMPLATE (placeholders only; no sponsor schema).
+#
+# The real map maps UrbanLab's canonical fields to paths in the CoStar kit's
+# JSON/CSV records. Because the kit schema is sponsor-confidential, the real
+# file lives OUTSIDE git, by default at costar/.local/field_map.toml, and is
+# deleted by `urbanlab-costar purge`.
+#
+# 1. `python -m urbanlab_costar kit-inspect --confirm-local-access --write-draft`
+#    prints the kit's groups and dotted key paths and writes a local draft.
+# 2. Copy the draft to costar/.local/field_map.toml and fill in the paths.
+# 3. Any field left empty becomes an explicit "not_mapped" gap; nothing is guessed.
+#
+# Values: a dotted path ("a.b.0.c") or a list of candidate paths (first non-empty wins).
+# Values starting with "<" are treated as unfilled placeholders.
+
+[datasets.commercial_property]
+members = "<glob of member files, e.g. folder/*.json>"
+format = "json"            # json | jsonl | csv
+records_path = ""          # dotted path to a list inside each file; "" = file is one record (or a list)
+id = "<path to the property id>"
+
+[datasets.commercial_property.fields]
+name = "<path>"
+address = "<path>"
+city = "<path>"
+state = "<path>"
+lat = "<path>"
+lon = "<path>"
+property_type = "<path>"
+building_class = "<path>"
+year_built = "<path>"
+building_area_sf = "<path>"
+land_area_sf = "<path>"
+parking_spaces = "<path>"
+garage_stalls = "<path>"   # only if the kit truly has a structured-parking field
+parking_ratio = "<path>"
+occupancy_pct = "<path>"
+vacancy_pct = "<path>"
+stories = "<path>"
+
+[datasets.commercial_property.units]
+land_area_sf = "sf"        # sf | acres | m2 (converted to sq ft)
+building_area_sf = "sf"
+
+# Other kit datasets can be added the same way and used with
+# PropertyRepository.records() / .lookup() for joins, e.g.:
+# [datasets.location_occupancy]
+# members = "<glob>"
+# format = "json"
+# id = "<path>"
+# [datasets.location_occupancy.fields]
+# property_id = "<path to the property id this tenancy belongs to>"
