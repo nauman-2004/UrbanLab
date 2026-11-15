@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "urbanlab-costar"
+version = "0.1.0"
+description = "UrbanLab sponsor-data adapters (CoStar kit, Vexcel, Matterport) with provenance and the frontend event contract."
+requires-python = ">=3.11"
+# No runtime dependencies: HTTP via urllib, TOML via tomllib, zip via zipfile.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "mypy>=1.10"]
+# Only needed if the CoStar kit turns out to use AES zip encryption.
+aes = ["pyzipper>=0.3.6"]
+
+[project.scripts]
+urbanlab-costar = "urbanlab_costar.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/urbanlab_costar"]
