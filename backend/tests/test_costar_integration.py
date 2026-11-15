@@ -108,7 +108,7 @@ def test_tool_writes_kit_values_and_reasons_to_dataset(synthetic):
     plan, errors = tools.validate_plan(PLAN)
     assert not errors
     store.set_plan(plan)
-    out = json.loads(tools.get_costar_properties("Houston", "Office", 4))
+    out = json.loads(tools.get_costar_properties())
     assert out["count"] == 4 and out["source"] == "synthetic"
     cell = store.get_cell("B-01", "year_built")
     assert cell["status"] == "filled" and cell["evidence_ref"].startswith("Synthetic CoStar kit #")
@@ -181,6 +181,10 @@ def test_tile_tool_refuses_unknown_coordinates(synthetic, monkeypatch):
     called = []
     monkeypatch.setattr(integrations, "vexcel_fetch_tile", lambda *a: called.append(a))
     tools.CURRENT_STUDY.set("st-tile-test")
+    plan, errors = tools.validate_plan({**PLAN, "variables": [*PLAN["variables"],
+                                                             {"name": "surface_parking_pct", "source": "vexcel", "type": "float"}]})
+    assert not errors
+    get_store("st-tile-test").set_plan(plan)
     out = json.loads(tools.get_aerial_tile(10.0, 10.0))
     assert "No sampled building" in out["error"] and not called
 
@@ -193,3 +197,97 @@ def test_plan_city_must_be_houston_or_la(city, ok):
         assert plan["sample"]["city"] in integrations.SUPPORTED_CITIES
     else:
         assert any("only Houston and Los Angeles" in e for e in errors)
+
+
+# ------------------------------------------------------------- search: filters, ranking, type names
+
+@pytest.mark.parametrize("word,kit_type", [("apartments", "Multifamily"), ("Multifamily", "Multifamily"),
+                                           ("hotel", "Hospitality"), ("warehouse", "Industrial"),
+                                           ("Retail", "GeneralRetail"), ("office", "Office"), ("Mixed-Use", "MixedUse")])
+def test_property_type_words_map_to_costar_types(word, kit_type):
+    assert integrations.normalize_property_type(word) == kit_type
+
+
+def test_unknown_property_type_is_rejected_with_the_allowed_list():
+    plan, errors = tools.validate_plan({**PLAN, "sample": {**PLAN["sample"], "property_type": "Castles"}})
+    assert plan is None and any("Multifamily" in e for e in errors)
+
+
+def test_lookup_plan_keeps_every_condition_and_collects_filtered_variables():
+    plan, errors = tools.validate_plan({
+        "goal": "lookup", "hypothesis": "Find Class B apartments built 1975-1995 on big lots.",
+        "variables": [{"name": "year_built", "source": "costar", "type": "int"}],
+        "sample": {"city": "Houston", "property_type": "apartments", "n": 5, "sort_by": "lot_sf", "sort_desc": True,
+                   "filters": [{"variable": "building_class", "values": ["b"]},
+                               {"variable": "year_built", "min": 1975, "max": 1995},
+                               {"variable": "year_renovated", "max": 2012, "include_missing": True},
+                               {"variable": "lot_sf", "min": 217800},
+                               {"variable": "building_rating", "min": 3, "max": 3}]}})
+    assert not errors, errors
+    assert plan["sample"]["property_type"] == "Multifamily"
+    assert plan["sample"]["filters"][0]["values"] == ["B"]
+    assert {v["name"] for v in plan["variables"]} >= {"year_built", "building_class", "year_renovated", "lot_sf",
+                                                      "building_rating"}
+
+
+@pytest.mark.parametrize("bad", [
+    {"variable": "surface_parking_pct", "min": 10},   # aerial values can't filter the CoStar search
+    {"variable": "year_built"},                        # no bound
+    {"variable": "building_class", "min": 1},          # category needs values
+    {"variable": "lot_sf", "min": 10, "max": 5},       # empty range
+])
+def test_bad_filters_are_rejected(bad):
+    _, errors = tools.validate_plan({**PLAN, "sample": {**PLAN["sample"], "filters": [bad]}})
+    assert errors
+
+
+def test_search_applies_every_filter_and_ranks(synthetic):
+    every = integrations.costar_search("Houston", "Office", 100)["rows"]
+    filters = [{"variable": "year_built", "min": 1960, "max": 1980}, {"variable": "building_class", "values": ["B"]}]
+    want = [r for r in every if r["year_built"] is not None and 1960 <= r["year_built"] <= 1980
+            and r["building_class"] == "B"]
+    res = integrations.costar_search("Houston", "Office", 3, filters, sort_by="lot_sf", sort_desc=True)
+    assert res["matched"] == len(want) > 3 and len(res["rows"]) == 3
+    assert [s[1] for s in res["steps"]][-1] == len(want)
+    lots = [r["lot_sf"] for r in res["rows"]]
+    assert lots == sorted(lots, reverse=True) and lots[0] == max(r["lot_sf"] for r in want)
+
+
+def test_missing_value_fails_filter_unless_include_missing(synthetic):
+    # The synthetic kit has no renovation field, so every record lacks year_renovated.
+    strict = integrations.costar_search("Houston", "Office", 50, [{"variable": "year_renovated", "max": 2012}])
+    lenient = integrations.costar_search("Houston", "Office", 50,
+                                         [{"variable": "year_renovated", "max": 2012, "include_missing": True}])
+    assert strict["matched"] == 0 and lenient["matched"] == lenient["candidates"] > 0
+
+
+def test_lookup_study_reports_ranked_results(synthetic):
+    sid = "st-lookup-test"
+    tools.CURRENT_STUDY.set(sid)
+    store = get_store(sid)
+    plan, errors = tools.validate_plan({
+        "goal": "lookup", "hypothesis": "Largest-lot Class B offices.",
+        "variables": [{"name": "year_built", "source": "costar", "type": "int"}],
+        "sample": {"city": "Houston", "property_type": "Office", "n": 2, "sort_by": "lot_sf",
+                   "filters": [{"variable": "building_class", "values": ["B"]}]}})
+    assert not errors
+    store.set_plan(plan)
+    out = json.loads(tools.get_costar_properties())
+    assert out["count"] == 2 and out["matched"] >= 2
+    res = json.loads(tools.run_analysis())
+    assert res["goal"] == "lookup" and [r["rank"] for r in res["results"]] == [1, 2]
+    lots = [r["values"]["lot_sf"] for r in res["results"]]
+    assert lots == sorted(lots, reverse=True)
+    assert res["findings"][0].startswith(f"{out['matched']} of ") and "CoStar ID" in res["findings"][-1]
+    assert json.loads(tools.get_aerial_tile(29.75, -95.36))["skipped"]  # no aerial variables planned
+
+
+def test_no_match_explains_each_filter(synthetic):
+    sid = "st-nomatch-test"
+    tools.CURRENT_STUDY.set(sid)
+    store = get_store(sid)
+    plan, _ = tools.validate_plan({**PLAN, "sample": {**PLAN["sample"], "filters": [
+        {"variable": "year_built", "min": 1800, "max": 1801}]}})
+    store.set_plan(plan)
+    out = json.loads(tools.get_costar_properties())
+    assert "match the plan" in out["error"] and "year_built" in out["error"]

@@ -76,7 +76,7 @@ class ScriptedModel(BaseChatModel):
             return AIMessage(content=str(last))
         if "get_costar_properties" in sys_text:
             if not done:
-                return AIMessage(content="", tool_calls=[self._tc("get_costar_properties", {"city": "Houston", "property_type": "Office", "limit": 8})])
+                return AIMessage(content="", tool_calls=[self._tc("get_costar_properties", {})])
             return AIMessage(content=tool_msgs[-1].content)
         if "get_aerial_tile" in sys_text:
             from dataset import get_store

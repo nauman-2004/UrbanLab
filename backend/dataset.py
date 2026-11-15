@@ -25,9 +25,12 @@ Source = Literal["costar", "vexcel"]
 VARIABLE_CATALOG: dict[str, dict[str, str]] = {
     # CoStar property records
     "year_built": {"source": "costar", "type": "int", "label": "Year built"},
+    "year_renovated": {"source": "costar", "type": "int", "label": "Last renovated (year)"},
     "rba_sf": {"source": "costar", "type": "float", "label": "Rentable building area (sf)"},
     "lot_sf": {"source": "costar", "type": "float", "label": "Lot size (sf)"},
-    "building_class": {"source": "costar", "type": "category", "label": "Building class"},
+    "stories": {"source": "costar", "type": "int", "label": "Stories above grade"},
+    "building_class": {"source": "costar", "type": "category", "label": "Building class (A/B/C)"},
+    "building_rating": {"source": "costar", "type": "int", "label": "CoStar building rating (1-5 stars)"},
     "parking_spaces": {"source": "costar", "type": "int", "label": "Parking spaces (CoStar)"},
     "parking_ratio": {"source": "costar", "type": "float", "label": "Parking ratio (/1,000 sf)"},
     # Vexcel aerial imagery measured by the vision model
@@ -43,6 +46,8 @@ class DatasetStore:
         self.buildings: dict[str, dict[str, Any]] = {}
         self.cells: dict[tuple[str, str], dict[str, Any]] = {}
         self.findings: dict[str, Any] | None = None
+        # How the CoStar search went: {"candidates", "matched", "steps", "sort_by", ...} (set by get_costar_properties).
+        self.search: dict[str, Any] | None = None
         self._lock = threading.RLock()
 
     # ---- plan -------------------------------------------------------------
@@ -139,6 +144,7 @@ class DatasetStore:
                 "buildings": list(self.buildings.values()),
                 "cells": list(self.cells.values()),
                 "findings": self.findings,
+                "search": self.search,
             }
 
     def _persist(self) -> None:

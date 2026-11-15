@@ -54,10 +54,22 @@ class PlanVariable(BaseModel):
     type: str = Field(description="int | float | bool | category")
 
 
+class PlanFilter(BaseModel):
+    variable: str = Field(description="A CoStar (source 'costar') variable from the catalog.")
+    min: float | None = Field(None, description="Inclusive lower bound, for numeric variables.")
+    max: float | None = Field(None, description="Inclusive upper bound, for numeric variables.")
+    values: list[str] | None = Field(None, description="Allowed categories, for category variables (e.g. ['B']).")
+    include_missing: bool = Field(False, description="Also keep records where CoStar has no value "
+                                                     "(e.g. 'no renovation since 2012' keeps never-renovated).")
+
+
 class PlanSample(BaseModel):
     city: str
-    property_type: str
-    n: int = Field(ge=1, le=50)
+    property_type: str = Field(description="CoStar property type, e.g. Office, Multifamily, Industrial.")
+    n: int = Field(ge=1, le=50, description="How many properties to return (the top n when sort_by is set).")
+    filters: list[PlanFilter] = Field(default_factory=list, description="Conditions EVERY property must meet.")
+    sort_by: str | None = Field(None, description="Rank by this CoStar variable; omit for a random sample.")
+    sort_desc: bool = Field(True, description="True = largest first.")
 
 
 def _as_dict(x: Any) -> Any:
@@ -68,11 +80,49 @@ def _as_dict(x: Any) -> Any:
     return x
 
 
+def _entry(name: str) -> dict[str, Any]:
+    cat = VARIABLE_CATALOG[name]
+    return {"name": name, "source": cat["source"], "type": cat["type"], "label": cat["label"]}
+
+
+def _validate_filters(raw: list[Any], errors: list[str]) -> list[dict[str, Any]]:
+    out = []
+    for f in _as_dict(raw or []):
+        f = dict(f or {})
+        var = f.get("variable")
+        cat = VARIABLE_CATALOG.get(var)
+        if cat is None or cat["source"] != "costar":
+            errors.append(f"Filter variable {var!r} must be a CoStar variable: "
+                          f"{sorted(k for k, v in VARIABLE_CATALOG.items() if v['source'] == 'costar')}.")
+            continue
+        lo, hi, values = f.get("min"), f.get("max"), f.get("values") or None
+        if cat["type"] == "category":
+            if not values:
+                errors.append(f"Filter on {var!r} needs 'values' (e.g. ['B']).")
+                continue
+            values = [str(v).strip().upper() if var == "building_class" else str(v).strip() for v in values]
+            lo = hi = None
+        else:
+            if lo is None and hi is None:
+                errors.append(f"Filter on {var!r} needs 'min' and/or 'max'.")
+                continue
+            if lo is not None and hi is not None and float(lo) > float(hi):
+                errors.append(f"Filter on {var!r}: min {lo} is greater than max {hi}.")
+                continue
+            values = None
+        out.append({"variable": var, "min": None if lo is None else float(lo), "max": None if hi is None else float(hi),
+                    "values": values, "include_missing": bool(f.get("include_missing"))})
+    return out
+
+
 def validate_plan(args: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
     """Normalise a submit_plan payload against the catalog. Returns (plan, errors)."""
     errors: list[str] = []
     variables = _as_dict(args.get("variables") or [])
     sample = _as_dict(args.get("sample") or {})
+    goal = args.get("goal") or "compare"
+    if goal not in {"compare", "lookup"}:
+        errors.append("goal must be 'compare' (test a hypothesis) or 'lookup' (find and list properties).")
     clean: list[dict[str, Any]] = []
     for v in variables:
         name = (v or {}).get("name")
@@ -84,13 +134,28 @@ def validate_plan(args: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str
             errors.append(f"Variable '{name}' comes from '{cat['source']}', not '{v.get('source')}'.")
             continue
         if name not in {c["name"] for c in clean}:
-            clean.append({"name": name, "source": cat["source"], "type": cat["type"], "label": cat["label"]})
-    if "year_built" not in {c["name"] for c in clean}:
+            clean.append(_entry(name))
+    if goal == "compare" and "year_built" not in {c["name"] for c in clean}:
         errors.append("Plan must include 'year_built' (needed for the decade-built comparison).")
     if not args.get("hypothesis"):
-        errors.append("Missing hypothesis.")
+        errors.append("Missing hypothesis (for a lookup: one sentence restating what to find).")
     if not sample.get("city") or not sample.get("property_type") or not sample.get("n"):
         errors.append("sample needs city, property_type and n.")
+    ptype = integrations.normalize_property_type(sample.get("property_type") or "")
+    if sample.get("property_type") and ptype is None:
+        errors.append(f"Property type {sample['property_type']!r} is not a CoStar type. Use one of "
+                      f"{list(integrations.PROPERTY_TYPES)} (apartments = Multifamily, hotels = Hospitality, "
+                      "warehouses = Industrial, retail = GeneralRetail).")
+    filters = _validate_filters(sample.get("filters"), errors)
+    sort_by = sample.get("sort_by") or None
+    if sort_by is not None:
+        cat = VARIABLE_CATALOG.get(sort_by)
+        if cat is None or cat["source"] != "costar" or cat["type"] not in {"int", "float"}:
+            errors.append(f"sort_by {sort_by!r} must be a numeric CoStar variable.")
+    # Every filtered or ranked variable is collected too, so the result shows why each property qualified.
+    for name in [f["variable"] for f in filters] + ([sort_by] if sort_by in VARIABLE_CATALOG else []):
+        if name not in {c["name"] for c in clean}:
+            clean.append(_entry(name))
     city = _CITY_ALIASES.get(str(sample.get("city") or "").strip().lower().replace(".", ""))
     if sample.get("city") and city is None:
         errors.append(f"City {sample['city']!r} is not supported: the CoStar data covers only "
@@ -98,22 +163,26 @@ def validate_plan(args: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str
                       "question can't be studied with the available data.")
     if errors:
         return None, errors
-    return {"hypothesis": args["hypothesis"], "variables": clean,
-            "sample": {"city": city, "property_type": sample["property_type"], "n": int(sample["n"])}}, []
+    return {"goal": goal, "hypothesis": args["hypothesis"], "variables": clean,
+            "sample": {"city": city, "property_type": ptype, "n": int(sample["n"]), "filters": filters,
+                       "sort_by": sort_by, "sort_desc": bool(sample.get("sort_desc", True))}}, []
 
 
 _CITY_ALIASES = {"houston": "Houston", "los angeles": "Los Angeles", "la": "Los Angeles"}
 
 
-def submit_plan(hypothesis: str, variables: list[PlanVariable], sample: PlanSample) -> str:
+def submit_plan(hypothesis: str, variables: list[PlanVariable], sample: PlanSample,
+                goal: Literal["compare", "lookup"] = "compare") -> str:
     """Submit the research plan for human approval. Only call once the plan is final.
 
     Args:
-        hypothesis: One falsifiable sentence.
+        hypothesis: compare: one falsifiable sentence. lookup: one sentence restating what to find.
         variables: Variables to collect; each name must come from the catalog with its catalog source.
-        sample: Which properties to study: city, property_type (e.g. "Office") and n.
+        sample: Which properties: city, property_type, n, plus filters every property must meet and an
+            optional sort_by/sort_desc to return the top n instead of a random sample.
+        goal: "compare" tests how an outcome varies with building age; "lookup" finds and lists properties.
     """
-    plan, errors = validate_plan({"hypothesis": hypothesis, "variables": variables, "sample": sample})
+    plan, errors = validate_plan({"hypothesis": hypothesis, "variables": variables, "sample": sample, "goal": goal})
     if errors:
         return _json({"status": "invalid", "errors": errors})
     store = _store()
@@ -129,7 +198,7 @@ def plan_needs_review(request: Any) -> bool:
 
 
 # ======================================================= data_collector ====
-_COSTAR_FIELDS = ["year_built", "rba_sf", "lot_sf", "building_class", "parking_spaces", "parking_ratio"]
+_COSTAR_FIELDS = list(integrations.COSTAR_FIELDS)
 
 
 def _coerce(name: str, raw: Any) -> Any:
@@ -146,36 +215,41 @@ def _coerce(name: str, raw: Any) -> Any:
     return raw
 
 
-def get_costar_properties(city: str, property_type: str, limit: int) -> str:
-    """Fetch CoStar property records and write them into the dataset.
+def get_costar_properties() -> str:
+    """Run the approved plan's CoStar search and write the result into the dataset.
 
-    Adds each property as a building (ids B-01, B-02, ...) and fills every planned
-    CoStar variable. Values CoStar doesn't have are recorded as missing.
-    Returns a short list of buildings with their coordinates.
-
-    Args:
-        city: City name, e.g. "Houston".
-        property_type: CoStar property type, e.g. "Office".
-        limit: Max number of properties.
+    Uses exactly the plan's city, property type, filters, sort and n (nothing is re-typed by the model).
+    Adds each property as a building (B-01, B-02, ... in result order, so B-01 is rank 1 when sorted)
+    and fills every planned CoStar variable. Values CoStar doesn't have are recorded as missing.
+    Returns how many properties matched each filter and the buildings with their coordinates.
     """
     store = _store()
     if store.plan is None:
         return _json({"error": "No approved plan yet. The plan must be approved before collecting data."})
-    fetch = lambda: integrations.costar_fetch_properties(city, property_type, limit)  # noqa: E731
+    sample = store.plan["sample"]
+    city, property_type, limit = sample["city"], sample["property_type"], sample["n"]
+    filters, sort_by, sort_desc = sample.get("filters") or [], sample.get("sort_by"), sample.get("sort_desc", True)
+    fetch = lambda: integrations.costar_search(city, property_type, limit, filters, sort_by, sort_desc)  # noqa: E731
     try:
         source = integrations.costar_source()
         if source == "kit":
             # Sponsor data: don't make extra copies of it in the demo cache.
-            rows, from_cache = fetch(), False
+            result, from_cache = fetch(), False
         else:
-            rows, from_cache = cache.cached("costar", f"{source}|{city}|{property_type}|{limit}|{config.SAMPLE_SEED}",
-                                            fetch)
+            key = json.dumps([source, city, property_type, limit, filters, sort_by, sort_desc, config.SAMPLE_SEED])
+            result, from_cache = cache.cached("costar", key, fetch)
     except integrations.CoStarError as e:
         return _json({"error": str(e)})
     except Exception as e:  # noqa: BLE001
         return _json({"error": f"CoStar request failed: {e}"})
+    rows = result["rows"]
+    store.search = {"candidates": result["candidates"], "matched": result["matched"], "steps": result["steps"],
+                    "returned": len(rows), "sort_by": sort_by, "sort_desc": sort_desc, "source": source}
     if not rows:
-        return _json({"error": f"CoStar returned no {property_type} properties in {city}."})
+        steps = "; ".join(f"{d} -> {n} left" for d, n in result["steps"])
+        return _json({"error": f"No {property_type} properties in {city} match the plan "
+                               f"({result['candidates']} before filters; {steps or 'no filters'}).",
+                      "search": store.search})
 
     planned = {v["name"] for v in store.planned_variables() if v["source"] == "costar"}
     vexcel_vars = _vexcel_vars(store)
@@ -203,7 +277,9 @@ def get_costar_properties(city: str, property_type: str, limit: int) -> str:
             for var in vexcel_vars:
                 store.mark_missing(bid, var, "vexcel", "No coordinates in the CoStar record, so no aerial tile.")
         out.append({"building_id": bid, "name": meta["name"], "lat": meta["lat"], "lng": meta["lng"]})
-    return _json({"buildings": out, "count": len(out), "source": source, "cached": from_cache,
+    return _json({"buildings": out, "count": len(out), "matched": result["matched"],
+                  "candidates": result["candidates"], "filter_steps": result["steps"], "source": source,
+                  "cached": from_cache,
                   "note": "Buildings with lat/lng null have no coordinates: skip them for aerial tiles."})
 
 
@@ -231,6 +307,8 @@ def get_aerial_tile(lat: float, lng: float) -> str:
         lng: Longitude (WGS84), exactly as returned by get_costar_properties.
     """
     store = _store()
+    if not _vexcel_vars(store):
+        return _json({"skipped": "The approved plan has no aerial (vexcel) variables, so no tile is needed."})
     bid = _building_at(store, lat, lng)
     if bid is None:
         # Never spend imagery requests on a point that isn't one of the sampled buildings.

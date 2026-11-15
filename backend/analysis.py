@@ -1,4 +1,5 @@
-"""Statistics over the provenance dataset: grouped comparison by decade built.
+"""Statistics over the provenance dataset: grouped comparison by decade built, or (goal "lookup")
+the ranked list of properties that met the plan's filters.
 
 Pure pandas/numpy/scipy. Every number in the output is computed from filled
 cells; the LLM only narrates it.
@@ -50,7 +51,76 @@ def wide_frame(store: DatasetStore) -> pd.DataFrame:
     return pd.DataFrame(list(rows.values()))
 
 
+def _fmt(value: Any, var: str) -> str:
+    if value is None:
+        return "not recorded"
+    t = VARIABLE_CATALOG.get(var, {}).get("type")
+    if t == "int" or var.startswith("year"):
+        return str(int(value)) if var.startswith("year") else f"{int(value):,}"
+    if t == "float":
+        return f"{float(value):,.0f}" if abs(float(value)) >= 100 else f"{float(value):,.2f}"
+    return str(value)
+
+
+def lookup(store: DatasetStore) -> dict[str, Any]:
+    """Ranked list of the properties the plan's search returned, with the values that qualified them."""
+    plan = store.plan or {}
+    sample = plan.get("sample", {})
+    search = store.search or {}
+    planned = [v["name"] for v in store.planned_variables()]
+    results = []
+    for rank, bid in enumerate(store.buildings, start=1):
+        b = store.buildings[bid]
+        values = {}
+        for var in planned:
+            cell = store.get_cell(bid, var)
+            values[var] = cell["value"] if cell and cell["status"] == "filled" else None
+        results.append({"rank": rank, "building_id": bid, "costar_id": b.get("costar_id"), "name": b.get("name"),
+                        "address": b.get("address"), "values": values})
+
+    where = f"{sample.get('city')} {sample.get('property_type')}"
+    findings = []
+    if search:
+        order = ""
+        if sample.get("sort_by"):
+            order = (f", ranked by {VARIABLE_CATALOG[sample['sort_by']]['label'].lower()} "
+                     f"({'largest' if sample.get('sort_desc', True) else 'smallest'} first)")
+        findings.append(f"{search.get('matched', 0)} of {search.get('candidates', 0)} {where} properties in the CoStar "
+                        f"data meet every condition; showing {len(results)}{order}.")
+        for desc, left in search.get("steps", []):
+            findings.append(f"Filter {desc}: {left} properties left.")
+    for r in results:
+        label = r["name"] or "unnamed"
+        detail = ", ".join(f"{VARIABLE_CATALOG[v]['label']}: {_fmt(r['values'].get(v), v)}" for v in planned)
+        findings.append(f"#{r['rank']} CoStar ID {r['costar_id']} ({label}): {detail}")
+
+    limitations = []
+    if any(f.get("include_missing") for f in sample.get("filters", [])):
+        limitations.append("Filters marked 'or not recorded' also kept properties where CoStar has no value "
+                           "(for renovation: no renovation is recorded).")
+    for var in planned:
+        miss = sum(1 for r in results if r["values"].get(var) is None)
+        if miss:
+            limitations.append(f"{var}: not recorded in CoStar for {miss} of {len(results)} listed properties.")
+    limitations.extend(_source_limitations(store))
+    return {"goal": "lookup", "n_buildings": len(results), "results": results, "search": search,
+            "findings": findings, "effects": [], "by_decade": [], "chart_spec": None, "limitations": limitations}
+
+
+def _source_limitations(store: DatasetStore) -> list[str]:
+    out = []
+    sources = {b.get("costar_source") for b in store.buildings.values()}
+    if "sample" in sources or any(str(b.get("costar_id", "")).startswith("SAMPLE") for b in store.buildings.values()):
+        out.append("Property records come from the placeholder CoStar sample CSV, not the CoStar data kit.")
+    if "synthetic" in sources:
+        out.append("Property records come from the costar package's synthetic test kit: invented data, "
+                   "not CoStar's. Do not report these values.")
+    return out
+
+
 def run(store: DatasetStore) -> dict[str, Any]:
+    if (store.plan or {}).get("goal") == "lookup":
+        return lookup(store)
     df = wide_frame(store)
     planned = [v["name"] for v in store.planned_variables()]
     if df.empty or "year_built" not in df or df["year_built"].isna().all():
@@ -157,12 +227,7 @@ def _limitations(store: DatasetStore, df: pd.DataFrame, outcomes: list[str]) -> 
         miss = sum(1 for c in cells if c["variable"] == var and c["status"] == "missing")
         if miss:
             out.append(f"{var}: {miss} of {len(store.buildings)} buildings missing.")
-    sources = {b.get("costar_source") for b in store.buildings.values()}
-    if "sample" in sources or any(str(b.get("costar_id", "")).startswith("SAMPLE") for b in store.buildings.values()):
-        out.append("Property records come from the placeholder CoStar sample CSV, not the CoStar data kit.")
-    if "synthetic" in sources:
-        out.append("Property records come from the costar package's synthetic test kit: invented data, "
-                   "not CoStar's. Do not report these values.")
+    out.extend(_source_limitations(store))
     if any(c["source"] == "vexcel" and c["status"] == "filled" for c in cells):
         out.append("Aerial measurements are vision-model estimates of surface parking; structured garages are excluded.")
     return out

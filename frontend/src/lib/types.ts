@@ -18,10 +18,32 @@ export interface PlanVariable {
   label: string; // e.g. "Surface parking (% of lot)"
 }
 
+/** One condition every property must meet (backend tools.PlanFilter). */
+export interface PlanFilter {
+  variable: string;
+  min?: number | null;
+  max?: number | null;
+  values?: string[] | null;
+  /** Also keep records where CoStar has no value. */
+  include_missing?: boolean;
+}
+
+export interface PlanSample {
+  city: string;
+  property_type: string;
+  n: number;
+  filters?: PlanFilter[];
+  /** Rank by this variable and keep the top n; absent = random sample. */
+  sort_by?: string | null;
+  sort_desc?: boolean;
+}
+
 export interface StudyPlan {
+  /** "compare": does an outcome vary with building age. "lookup": find, filter and rank properties. */
+  goal?: "compare" | "lookup";
   hypothesis: string;
   variables: PlanVariable[];
-  sample: { city: string; property_type: string; n: number };
+  sample: PlanSample;
 }
 
 /** A building in the sample (CoStar record). */
@@ -115,7 +137,20 @@ export interface DecadeStat {
   ci95: [number | null, number | null] | null;
 }
 
+/** One property in a lookup's ranked result (analysis.lookup). */
+export interface LookupResult {
+  rank: number;
+  building_id: string;
+  costar_id?: string | null;
+  name?: string | null;
+  address?: string | null;
+  values: Record<string, number | string | null>;
+}
+
 export interface Findings {
+  goal?: "compare" | "lookup";
+  results?: LookupResult[];
+  search?: { candidates?: number; matched?: number; steps?: [string, number][] };
   era_cutoff?: number;
   n_buildings?: number;
   findings: string[];

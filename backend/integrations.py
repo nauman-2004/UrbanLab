@@ -13,6 +13,7 @@ CoStar records come from one of (URBANLAB_COSTAR_SOURCE, see .env.example):
 from __future__ import annotations
 
 import csv
+import random
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -22,13 +23,40 @@ import config
 # Backend variable (dataset.VARIABLE_CATALOG) -> canonical urbanlab_costar kit field.
 COSTAR_FIELDS: dict[str, str] = {
     "year_built": "year_built",
+    "year_renovated": "year_renovated",
     "rba_sf": "building_area_sf",
     "lot_sf": "land_area_sf",
+    "stories": "stories",
     "building_class": "building_class",
+    "building_rating": "building_rating",
     "parking_spaces": "parking_spaces",
     "parking_ratio": "parking_ratio",
 }
 SUPPORTED_CITIES = ("Houston", "Los Angeles")  # where the CoStar kit has properties
+
+# CoStar's own property-type names (kit enum PropertyType). The search matches these exactly.
+PROPERTY_TYPES = ("Office", "Multifamily", "Industrial", "GeneralRetail", "Hospitality", "Flex", "Land",
+                  "Specialty", "Healthcare", "MixedUse", "SportsAndEntertainment")
+# Everyday words -> CoStar type. Keys are lower-case letters/digits only.
+_TYPE_ALIASES = {
+    "office": "Office", "offices": "Office", "officebuilding": "Office", "officebuildings": "Office",
+    "medicaloffice": "Office",
+    "multifamily": "Multifamily", "apartment": "Multifamily", "apartments": "Multifamily",
+    "apartmentcomplex": "Multifamily", "apartmentcommunity": "Multifamily", "apartmentbuildings": "Multifamily",
+    "industrial": "Industrial", "warehouse": "Industrial", "warehouses": "Industrial",
+    "distribution": "Industrial", "manufacturing": "Industrial",
+    "retail": "GeneralRetail", "generalretail": "GeneralRetail", "shoppingcenter": "GeneralRetail",
+    "shoppingcenters": "GeneralRetail", "store": "GeneralRetail", "stores": "GeneralRetail",
+    "hospitality": "Hospitality", "hotel": "Hospitality", "hotels": "Hospitality", "motel": "Hospitality",
+    "flex": "Flex", "land": "Land", "specialty": "Specialty", "healthcare": "Healthcare",
+    "mixeduse": "MixedUse", "sportsandentertainment": "SportsAndEntertainment",
+}
+
+
+def normalize_property_type(raw: str) -> str | None:
+    """CoStar's type name for an everyday word ("apartments" -> "Multifamily"), or None if unknown."""
+    key = "".join(ch for ch in str(raw or "").lower() if ch.isalnum())
+    return _TYPE_ALIASES.get(key)
 
 
 class CoStarError(RuntimeError):
@@ -55,22 +83,93 @@ def costar_source() -> str:
 
 
 def costar_fetch_properties(city: str, property_type: str, limit: int) -> list[dict[str, Any]]:
-    """Return CoStar property records as dicts.
+    """Up to `limit` CoStar property records (random sample, no filters). See costar_search."""
+    return costar_search(city, property_type, limit)["rows"]
 
-    Keys: costar_id, name, address, city, property_type, lat, lng, the COSTAR_FIELDS
-    variables, plus:
-      - costar_source: "kit" | "synthetic" | "sample"
-      - _ref:          evidence reference for every value from this record
-      - _missing:      {variable: reason} for each variable the record doesn't have
-    A missing value is None (never a default). lat/lng may be None if the kit has no coordinates.
+
+def costar_search(city: str, property_type: str, limit: int, filters: list[dict[str, Any]] | None = None,
+                  sort_by: str | None = None, sort_desc: bool = True) -> dict[str, Any]:
+    """Search every CoStar record of `property_type` in `city`, keep those that pass ALL `filters`, then
+    return the top `limit` by `sort_by` (or a reproducible random sample of `limit` when unsorted).
+
+    filters: [{"variable", "min"?, "max"?, "values"?, "include_missing"?}] on COSTAR_FIELDS variables.
+      min/max are inclusive numeric bounds; values lists allowed categories (e.g. ["B"]); a record
+      without the value fails the filter unless include_missing is true.
+    Returns {"rows", "matched" (records passing every filter), "candidates" (city + type, before filters),
+             "steps" ([[filter description, records left], ...])}.
+
+    Row keys: costar_id, name, address, city, property_type, lat, lng, the COSTAR_FIELDS variables, plus
+      costar_source ("kit" | "synthetic" | "sample"), _ref (evidence reference), _missing ({variable: reason}).
+    A missing value is None (never a default). lat/lng may be None if the record has no coordinates.
     """
     src = costar_source()
     if src == "sample":
-        return _sample_csv(city, property_type, limit)
-    return _kit(city, property_type, limit, mode="real" if src == "kit" else "synthetic")
+        selected, info = _select(_sample_csv(city, property_type), filters or [], sort_by, sort_desc, limit)
+        return {"rows": selected, **info}
+    return _kit(city, property_type, limit, filters or [], sort_by, sort_desc,
+                mode="real" if src == "kit" else "synthetic")
 
 
-def _kit(city: str, property_type: str, limit: int, mode: str) -> list[dict[str, Any]]:
+def _num(v: Any) -> float | None:
+    try:
+        return float(v) if v is not None and v != "" else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _passes(row: dict[str, Any], f: dict[str, Any]) -> bool:
+    v = row.get(f["variable"])
+    if v is None or v == "":
+        return bool(f.get("include_missing"))
+    if f.get("values"):
+        return str(v).strip().lower() in {str(x).strip().lower() for x in f["values"]}
+    n = _num(v)
+    if n is None:
+        return False
+    lo, hi = f.get("min"), f.get("max")
+    return (lo is None or n >= lo) and (hi is None or n <= hi)
+
+
+def describe_filter(f: dict[str, Any]) -> str:
+    var = f["variable"]
+    if f.get("values"):
+        txt = f"{var} in {list(f['values'])}"
+    elif f.get("min") is not None and f.get("max") is not None:
+        txt = f"{f['min']:g} <= {var} <= {f['max']:g}"
+    elif f.get("min") is not None:
+        txt = f"{var} >= {f['min']:g}"
+    else:
+        txt = f"{var} <= {f['max']:g}"
+    return txt + (" (or not recorded)" if f.get("include_missing") else "")
+
+
+def _id_key(row: dict[str, Any]) -> tuple[int, str]:
+    cid = str(row.get("costar_id") or "")
+    return (len(cid), cid)
+
+
+def _select(candidates: list[dict[str, Any]], filters: list[dict[str, Any]], sort_by: str | None,
+            sort_desc: bool, limit: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    rows = sorted(candidates, key=_id_key)
+    steps = []
+    for f in filters:
+        rows = [r for r in rows if _passes(r, f)]
+        steps.append([describe_filter(f), len(rows)])
+    matched = len(rows)
+    if sort_by:
+        known = [r for r in rows if _num(r.get(sort_by)) is not None]
+        unknown = [r for r in rows if _num(r.get(sort_by)) is None]  # records without the value rank last
+        known.sort(key=lambda r: (-_num(r[sort_by]) if sort_desc else _num(r[sort_by]), _id_key(r)))
+        selected = (known + unknown)[:limit]
+    elif len(rows) > limit:
+        selected = sorted(random.Random(config.SAMPLE_SEED).sample(rows, limit), key=_id_key)
+    else:
+        selected = rows
+    return selected, {"matched": matched, "candidates": len(candidates), "steps": steps}
+
+
+def _kit(city: str, property_type: str, limit: int, filters: list[dict[str, Any]], sort_by: str | None,
+         sort_desc: bool, mode: str) -> dict[str, Any]:
     from urbanlab_costar.kit.repository import PropertyFilter
     from urbanlab_costar.research.spec import resolve_region
     from urbanlab_costar.runtime import build_runtime
@@ -85,20 +184,22 @@ def _kit(city: str, property_type: str, limit: int, mode: str) -> list[dict[str,
                               + ". Set COSTAR_KIT_ZIP / COSTAR_ZIP_PASSWORD in the root .env "
                                 "(see costar/README.md), or URBANLAB_COSTAR_SOURCE=sample.")
         repo = rt.adapters.repository
-        cap = min(limit, settings.max_properties)
+        # Every record of this type in the region; filters and ranking then run over all of them.
         records = repo.properties(PropertyFilter(region=region["region"], property_types=(property_type,),
-                                                 limit=cap, seed=config.SAMPLE_SEED))
+                                                 limit=10**9))
         label = "CoStar kit" if mode == "real" else "Synthetic CoStar kit"
-        rows = [_kit_row(r, label, "kit" if mode == "real" else "synthetic") for r in records]
+        source = "kit" if mode == "real" else "synthetic"
+        candidates = [_kit_row(r, label, source) for r in records]
+        selected, info = _select(candidates, filters, sort_by, sort_desc, min(limit, settings.max_properties))
         # Matterport, no API key: link each property to its public Showcase 3D tour via the sponsor's
         # models_index.csv (MATTERPORT_INDEX_CSV) or the kit's own link list. Local lookup, 0 requests.
         mp = rt.adapters.matterport if config.MATTERPORT_LINKS else None  # on hold: URBANLAB_MATTERPORT_LINKS
-        for row, rec in zip(rows, records):
-            if mp is not None:
-                found = mp.collect(rec.kit_id, set())
+        if mp is not None:
+            for row in selected:
+                found = mp.collect(row["costar_id"], set())
                 row["matterport_url"] = found.showcase_url
                 row["matterport_models"] = len(found.sids)
-        return rows
+        return {"rows": selected, **info}
 
 
 def _kit_row(rec: Any, label: str, source: str) -> dict[str, Any]:
@@ -128,8 +229,8 @@ def _kit_row(rec: Any, label: str, source: str) -> dict[str, Any]:
     return row
 
 
-def _sample_csv(city: str, property_type: str, limit: int) -> list[dict[str, Any]]:
-    """Placeholder rows from config.COSTAR_CSV (keys as costar_fetch_properties)."""
+def _sample_csv(city: str, property_type: str) -> list[dict[str, Any]]:
+    """Placeholder rows from config.COSTAR_CSV (keys as costar_search rows)."""
     rows: list[dict[str, Any]] = []
     with open(config.COSTAR_CSV, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
@@ -138,10 +239,9 @@ def _sample_csv(city: str, property_type: str, limit: int) -> list[dict[str, Any
             if row["property_type"].strip().lower() != property_type.strip().lower():
                 continue
             clean = {k: (v.strip() if isinstance(v, str) and v.strip() != "" else None) for k, v in row.items()}
-            clean.update({"costar_source": "sample", "_ref": f"CoStar #{clean.get('costar_id')}", "_missing": {}})
+            missing = {var: "not in the sample CSV" for var in COSTAR_FIELDS if var not in row}
+            clean.update({"costar_source": "sample", "_ref": f"CoStar #{clean.get('costar_id')}", "_missing": missing})
             rows.append(clean)
-            if len(rows) >= limit:
-                break
     return rows
 
 
