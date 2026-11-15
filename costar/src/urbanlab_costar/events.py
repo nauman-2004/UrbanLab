@@ -25,9 +25,9 @@ from .research.variables import FRONTEND_KEYS, VARIABLES
 
 Profile = Literal["strict", "extended"]
 
-VARIABLE_KEYS = frozenset({"yearBuilt", "lotSf", "rbaSf", "surfaceSf", "garageStalls", "offsiteSpaces"})
-SOURCES = frozenset({"costar", "vexcel", "matterport", "interview", "derived"})
-VERIFICATIONS = frozenset({"observed", "unverified", "verified"})
+VARIABLE_KEYS = frozenset({"yearBuilt", "lotSf", "rbaSf", "surfaceSf", "garageStalls"})
+SOURCES = frozenset({"costar", "vexcel", "matterport", "derived"})
+VERIFICATIONS = frozenset({"observed"})
 STAGES = frozenset({"plan", "collect", "measure", "fill", "analyze", "report"})
 TODO_STATUS = frozenset({"pending", "running", "done"})
 GAP_STATUS = frozenset({"open", "queued", "collecting", "filled", "declined"})
@@ -44,20 +44,13 @@ REQUIRED: dict[str, tuple[str, ...]] = {
     "subagent.finished": ("name", "summary"),
     "property.added": ("property",),
     "cell.filled": ("propertyId", "variable", "cell"),
-    "cell.verified": ("propertyId", "variable", "evidenceRef"),
     "gap.detected": ("gap",),
     "gap.status": ("propertyId", "variable", "status"),
     "approval.requested": ("request",),
-    "interview.started": ("interviewId", "propertyId", "contact", "questions", "approvedAt"),
-    "interview.consent": ("interviewId", "t"),
-    "interview.utterance": ("interviewId", "utterance"),
-    "interview.question": ("interviewId", "index", "status"),
-    "interview.extracted": ("interviewId", "variable", "value", "confidence", "quoteT"),
-    "interview.ended": ("interviewId", "elapsed"),
     "analysis.started": (),
     "report.ready": ("draft",),
 }
-PROPERTY_REQUIRED = ("id", "costarId", "name", "address", "propertyClass", "occupancyPct", "lat", "lng")
+PROPERTY_REQUIRED = ("id", "costarId", "name", "address", "propertyClass", "lat", "lng")
 
 
 _IDENT = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
@@ -100,11 +93,6 @@ def validate_event(e: Any, profile: Profile = "strict") -> list[str]:
             errs.append("cell.filled: evidence.ref is required")
         elif "confidence" in ev and not (isinstance(ev["confidence"], (int, float)) and 0 <= ev["confidence"] <= 1):
             errs.append("cell.filled: evidence.confidence must be 0..1")
-        if c.get("source") == "interview":
-            if c.get("verification") == "observed":
-                errs.append("cell.filled: interview values must be unverified/verified")
-            if isinstance(ev, dict) and not ev.get("quote"):
-                errs.append("cell.filled: interview values need evidence.quote")
         allowed = {"value", "source", "verification", "evidence"} | ({"provenance"} if profile == "extended" else set())
         extra = set(c) - allowed - {"at"}
         if extra:

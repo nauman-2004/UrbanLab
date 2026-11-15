@@ -62,20 +62,6 @@ id = "PropertyKey"
 property_id = "PropertyKey"
 model_id = "ModelKey"
 
-[datasets.location_occupancy]
-members = "synthetic-occupancy.jsonl"
-format = "jsonl"
-id = "oid"
-
-[datasets.location_occupancy.fields]
-property_id = "pid"
-from_date = "start"
-to_date = "end"
-move_in_date = "movein"
-occupied_sf = { list = "rooms", take = "sf", agg = "sum" }
-spaces_count = { list = "rooms", agg = "count" }
-spaces_missing_sf = { list = "rooms", take = "sf", agg = "count_null" }
-
 [datasets.synthetic_tenancy]
 members = "synthetic-tenancy.jsonl"
 format = "jsonl"
@@ -98,7 +84,6 @@ class SynBuilding:
     lot_sf: int | None
     parking_share: float  # fraction of the parcel the synthetic detector "finds"
     grade: str
-    occ: int
     use: str = "Office"
     vexcel_404: bool = False
     model_sids: tuple[str, ...] = ()
@@ -120,38 +105,19 @@ def _buildings() -> list[SynBuilding]:
             lot_sf=60_000 + 8_000 * (i % 5),
             parking_share=(0.42 - 0.03 * i) if old else (0.08 + 0.01 * (i - 6)),
             grade="B" if old else "A",
-            occ=70 + 2 * i,
             vexcel_404=(i == 9),
             model_sids=(f"SYNTHMODEL{i:02d}",) if i % 3 == 0 else (),
         ))
     # Edge cases: missing year, non-office, out of the Houston box.
     out[4] = SynBuilding(**{**out[4].__dict__, "year": None})
-    out.append(SynBuilding("90101", "Synthetic Warehouse", 29.80, -95.30, 1990, 90_000, 200_000, 0.3, "C", 95,
+    out.append(SynBuilding("90101", "Synthetic Warehouse", 29.80, -95.30, 1990, 90_000, 200_000, 0.3, "C",
                            use="Industrial"))
-    out.append(SynBuilding("90102", "Synthetic LA Office", 34.05, -118.25, 1985, 300_000, 70_000, 0.2, "A", 88))
+    out.append(SynBuilding("90102", "Synthetic LA Office", 34.05, -118.25, 1985, 300_000, 70_000, 0.2, "A"))
     return out
 
 
 BUILDINGS = _buildings()
 
-# Synthetic tenancies (as_of 2026-06-30) exercising every occupancy rule. RBA of 90001 is 180,000 sf.
-_T = "2010-01-01T00:00:00Z"
-SYNTHETIC_OCCUPANCY: list[dict[str, Any]] = [
-    # 90001: 2 current (50k + 40k) -> 50.0 %; 1 ended; 1 future start
-    {"oid": 1, "pid": 90001, "start": _T, "rooms": [{"sf": 50_000}]},
-    {"oid": 2, "pid": 90001, "start": _T, "end": None, "rooms": [{"sf": 30_000}, {"sf": 10_000}]},
-    {"oid": 3, "pid": 90001, "start": _T, "end": "2020-01-01T00:00:00Z", "rooms": [{"sf": 99_000}]},
-    {"oid": 4, "pid": 90001, "start": "2027-03-01T00:00:00Z", "rooms": [{"sf": 20_000}]},
-    # 90002: a current tenancy with a space lacking area -> gap
-    {"oid": 5, "pid": 90002, "start": _T, "rooms": [{"sf": 10_000}, {"sf": None}]},
-    # 90003: recorded area above RBA (230,000) -> gap
-    {"oid": 6, "pid": 90003, "start": _T, "rooms": [{"sf": 250_000}]},
-    # 90004: only ended tenancies -> 0 current, percentage is a gap (not 0 %)
-    {"oid": 7, "pid": 90004, "start": _T, "end": "2019-05-01T00:00:00Z", "rooms": [{"sf": 1_000}]},
-    # 90006: leased but not yet moved in (excluded) + 10k current
-    {"oid": 8, "pid": 90006, "start": _T, "movein": "2027-01-01T00:00:00Z", "rooms": [{"sf": 70_000}]},
-    {"oid": 9, "pid": 90006, "start": _T, "movein": "2011-01-01T00:00:00Z", "rooms": [{"sf": 10_000}]},
-]
 # Recorded vacancy (synthetic): one valid, one recorded zero, one invalid (> 100).
 SYNTHETIC_VACANCY: dict[str, Any] = {"90007": 6, "90008": 0, "90009": 120}
 
@@ -163,7 +129,7 @@ def build_kit(directory: Path) -> Path:
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("README-SYNTHETIC.md", "Synthetic test kit. Not CoStar data.\n")
         for b in BUILDINGS:
-            facts: dict[str, Any] = {"use": b.use, "grade": b.grade, "nra": b.rba, "occ": b.occ}
+            facts: dict[str, Any] = {"use": b.use, "grade": b.grade, "nra": b.rba}
             if b.year is not None:
                 facts["built"] = b.year
             if b.lot_sf is not None:
@@ -183,7 +149,6 @@ def build_kit(directory: Path) -> Path:
             zf.writestr(f"synthetic-commercial/{b.sid}.json", json.dumps(rec))
         lines = [json.dumps({"tid": f"T{k}", "pid": BUILDINGS[k % 3].sid, "who": f"Tenant {k}"}) for k in range(6)]
         zf.writestr("synthetic-tenancy.jsonl", "\n".join(lines) + "\n")
-        zf.writestr("synthetic-occupancy.jsonl", "\n".join(json.dumps(o) for o in SYNTHETIC_OCCUPANCY) + "\n")
         # Extra links not in the models index (merge test): buildings 2 and 3, plus a duplicate of building 1.
         links = ["PropertyKey,ModelKey", "90001,SYNTHMODEL00", "90002,SYNTHLINK002", "90003,SYNTHLINK003", "90003,"]
         zf.writestr("synthetic-links.csv", "\n".join(links) + "\n")
@@ -295,8 +260,7 @@ DEMO_SPEC: dict[str, Any] = {
     "region": "houston",
     "property_types": ["office"],
     "variables": ["year_built", "building_area_sf", "land_area_sf", "surface_parking_sf",
-                  "garage_stalls", "offsite_spaces", "surface_parking_share", "matterport_model_count",
-                  "occupancy_pct"],
+                  "garage_stalls", "surface_parking_share", "matterport_model_count"],
     "sample_limit": 20,
     "hypothesis": "Pre-1980 offices have a higher surface-parking share of their lot than post-2000 offices.",
 }

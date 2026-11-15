@@ -14,7 +14,6 @@ const PATHS = {
   mic: "M9 6a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0zM5 11a7 7 0 0 0 14 0M12 18v3",
   micOff: "M3 3l18 18M9 9v2a3 3 0 0 0 5 2.2M15 9.3V6a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 11.5 5.4M19 11a7 7 0 0 1-.6 2.8M12 18v3",
   speaker: "M4 9v6h4l5 4V5L8 9zM16 9a4 4 0 0 1 0 6",
-  phoneOff: "M3 15c5-5 13-5 18 0l-3 2-3-2v-2a10 10 0 0 0-6 0v2l-3 2z",
   expand: "M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7",
   close: "M6 6l12 12M18 6L6 18",
   play: "M7 4l13 8-13 8z",
@@ -31,7 +30,7 @@ const PATHS = {
 export type IconName = keyof typeof PATHS;
 
 export function Icon({ name, className = "size-4", ...rest }: { name: IconName } & SVGProps<SVGSVGElement>) {
-  const filled = name === "play" || name === "pause" || name === "phoneOff";
+  const filled = name === "play" || name === "pause";
   return (
     <svg
       viewBox="0 0 24 24"

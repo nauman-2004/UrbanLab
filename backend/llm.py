@@ -1,4 +1,4 @@
-"""Multimodal LLM calls with structured (Pydantic) output: aerial measurement + transcript extraction."""
+"""Multimodal LLM call with structured (Pydantic) output: aerial parking measurement."""
 
 from __future__ import annotations
 
@@ -30,20 +30,6 @@ class ParkingMeasurement(BaseModel):
     _nulls = field_validator("est_spaces", "surface_parking_pct", mode="before")(_null_string_to_none)
 
 
-class ExtractedAnswer(BaseModel):
-    variable: str = Field(description="Target variable name, exactly as given.")
-    value: float | None = Field(description="Numeric value; booleans as 1/0. null if the contact did not clearly answer.")
-    confidence: float = Field(ge=0, le=1)
-    quote: str | None = Field(description="The contact's exact words supporting the value; null if unanswered.")
-    t: float | None = Field(description="Timestamp (s) of the quoted contact turn.")
-
-    _nulls = field_validator("value", "quote", "t", mode="before")(_null_string_to_none)
-
-
-class TranscriptExtraction(BaseModel):
-    answers: list[ExtractedAnswer]
-
-
 @lru_cache(maxsize=None)
 def _model(name: str):
     return init_chat_model(name)
@@ -67,15 +53,3 @@ def measure_parking_image(image_path: Path) -> ParkingMeasurement:
         ],
     }
     return _model(config.VISION_MODEL).with_structured_output(ParkingMeasurement).invoke([msg])
-
-
-def extract_survey_answers(transcript: list[dict], targets: dict[str, str]) -> TranscriptExtraction:
-    """targets: {variable_name: description incl. type}."""
-    lines = "\n".join(f"[{turn['t']:>5}s] {turn['speaker'].upper()}: {turn['text']}" for turn in transcript)
-    spec = "\n".join(f"- {k}: {v}" for k, v in targets.items())
-    prompt = (
-        "Extract survey answers from this phone transcript. Only use what the CONTACT said. "
-        "If the contact did not clearly answer, value must be null. Never infer or estimate.\n\n"
-        f"Target variables:\n{spec}\n\nTranscript:\n{lines}"
-    )
-    return _model(config.EXTRACTION_MODEL).with_structured_output(TranscriptExtraction).invoke(prompt)

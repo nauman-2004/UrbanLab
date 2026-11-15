@@ -48,7 +48,6 @@ land_area_sf = "<path>"
 parking_spaces = "<path>"
 garage_stalls = "<path>"   # only if the kit truly has a structured-parking field
 parking_ratio = "<path>"
-occupancy_pct = "<path>"
 vacancy_pct = "<path>"
 stories = "<path>"
 
@@ -68,9 +67,9 @@ model_id = "<model id column>"
 
 # Other kit datasets can be added the same way and used with
 # PropertyRepository.records() / .lookup() for joins, e.g.:
-# [datasets.location_occupancy]
+# [datasets.sale_comps]
 # members = "<glob>"
 # format = "json"
 # id = "<path>"
-# [datasets.location_occupancy.fields]
-# property_id = "<path to the property id this tenancy belongs to>"
+# [datasets.sale_comps.fields]
+# property_id = "<path to the property id this record belongs to>"

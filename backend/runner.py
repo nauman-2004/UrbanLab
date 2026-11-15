@@ -16,11 +16,10 @@ from langgraph.types import Command
 
 import events
 import tools
-from dataset import get_store
 
 log = logging.getLogger("urbanlab.runner")
 
-_GATE_KIND = {"submit_plan": "plan", "request_survey_call": "survey"}
+_GATE_KIND = {"submit_plan": "plan"}
 
 
 @dataclass
@@ -60,15 +59,7 @@ def answer(study: Study, action_id: str, approved: bool, edited_args: dict | Non
     elif approved:
         decision = {"type": "approve"}
     else:
-        if action.tool == "request_survey_call":
-            bid = action.args.get("building_id")
-            store = get_store(study.id)
-            for v in store.planned_variables():
-                if v["source"] == "survey" and bid in store.buildings:
-                    store.mark_missing(bid, v["name"], "survey", "Survey call not approved by the reviewer.")
-            msg = "The reviewer did NOT approve this call; it was not placed. Do not retry it. Continue without it."
-        else:
-            msg = "The reviewer rejected the plan." + (f" Feedback: {feedback}" if feedback else " Revise it and resubmit.")
+        msg = "The reviewer rejected the plan." + (f" Feedback: {feedback}" if feedback else " Revise it and resubmit.")
         decision = {"type": "reject", "message": msg}
     action.future.set_result(decision)
 

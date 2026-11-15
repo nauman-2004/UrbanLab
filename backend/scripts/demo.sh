@@ -10,7 +10,7 @@
 set -euo pipefail
 
 API="${API:-http://localhost:8000}"
-QUESTION="${QUESTION:-How prepared are commercial office properties in Houston for EV adoption?}"
+QUESTION="${QUESTION:-Do older office buildings in Houston dedicate more land to surface parking?}"
 AUTO_APPROVE="${AUTO_APPROVE:-1}"
 PY="${PY:-python}"
 
@@ -42,8 +42,6 @@ curl -fsSN "$API/studies/$SID/events" | while IFS= read -r line; do
       curl -fsS -X POST "$API/studies/$SID/approve" -H 'Content-Type: application/json' \
         -d "{\"action_id\": \"$action_id\", \"approved\": $approved}" >/dev/null
       echo "  -> $action_id approved=$approved" ;;
-    call_transcript)
-      echo "$ev" | json '"  CALL     {building_id} {call_id} stub={stub}\n".format(**d["data"]) + "\n".join("           [{t:>5}s] {speaker}: {text}".format(**u) for u in d["data"]["transcript"])' ;;
     findings_ready)
       echo "$ev" | json '"\n  FINDINGS\n" + "\n".join("   - " + f for f in d["data"]["findings"]) + "\n  LIMITATIONS\n" + "\n".join("   - " + l for l in d["data"]["limitations"])' ;;
     study_completed|study_failed)

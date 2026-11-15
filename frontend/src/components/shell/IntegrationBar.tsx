@@ -16,10 +16,9 @@ export function IntegrationBar() {
   const vexcelStub = tiles.length && tiles.every((u) => u!.startsWith("/tiles/live/")) ? undefined : tiles.length ? "placeholder tiles" : "live if VEXCEL_API_KEY is set";
   const integrations: { name: string; stub?: string }[] = [
     { name: "LangChain Deep Agents" },
-    { name: "OpenRouter · Nemotron" },
+    { name: "Google Gemini" },
     { name: "CoStar data kit", stub: costarStub },
     { name: "Vexcel imagery", stub: vexcelStub },
-    { name: "Phone survey", stub: "scripted transcript" },
   ];
   return (
     <footer className="flex flex-wrap items-center gap-x-3.5 gap-y-1 border-t border-line bg-rail px-5 py-2 text-[10.5px] text-dim">

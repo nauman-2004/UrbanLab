@@ -1,5 +1,5 @@
 import type { StudyEvent } from "../events";
-import type { Approval, Building, Call, Cell, Findings, Gap, LogEntry, Step, StudyPlan } from "../types";
+import type { Approval, Building, Cell, Findings, Gap, LogEntry, Step, StudyPlan } from "../types";
 
 /** The orchestrator's pipeline, in order (backend/agent.py SUBAGENTS). */
 export const STEPS: { name: string; label: string }[] = [
@@ -7,7 +7,6 @@ export const STEPS: { name: string; label: string }[] = [
   { name: "data_collector", label: "Collect" },
   { name: "vision_measurer", label: "Measure" },
   { name: "gap_analyst", label: "Find gaps" },
-  { name: "field_surveyor", label: "Survey" },
   { name: "analyst", label: "Analyze" },
 ];
 
@@ -26,8 +25,6 @@ export interface StudyState {
   cellAt: Record<string, number>;
   gaps: Gap[];
   approvals: Approval[];
-  calls: Record<string, Call>;
-  callOrder: string[];
   findings: Findings | null;
   summary: string | null;
   error: string | null;
@@ -50,8 +47,6 @@ export const initialState: StudyState = {
   cellAt: {},
   gaps: [],
   approvals: [],
-  calls: {},
-  callOrder: [],
   findings: null,
   summary: null,
   error: null,
@@ -99,7 +94,6 @@ export function studyReducer(s: StudyState, action: StudyAction): StudyState {
       log: log(s, action.at, {
         kind: "approval",
         text: `${action.approved ? "✓ approved" : "✕ rejected"} ${ap.tool}`,
-        detail: ap.kind === "survey" ? String(ap.args.building_id ?? "") : undefined,
       }),
     };
   }
@@ -164,7 +158,7 @@ function reduceEvent(s: StudyState, e: StudyEvent, at: number): StudyState {
       if (c.status === "filled") {
         next.log = log(s, at, { kind: "cell", text: `${c.building_id}.${c.variable} = ${String(c.value)}`, detail: c.evidence_ref ?? undefined, tag: c.source });
       } else if (prev?.status !== "missing" || prev.reason !== c.reason) {
-        if (c.reason && !/^Not (yet )?collected\.$/.test(c.reason) && c.source !== "survey") {
+        if (c.reason && !/^Not (yet )?collected\.$/.test(c.reason)) {
           next.log = log(s, at, { kind: "gap", text: `${c.building_id}.${c.variable} missing`, detail: c.reason, tag: c.source });
         }
       }
@@ -188,24 +182,9 @@ function reduceEvent(s: StudyState, e: StudyEvent, at: number): StudyState {
         log: log(s, at, {
           kind: "approval",
           text: `⏸ approval required · ${e.data.tool}`,
-          detail: e.data.kind === "survey" ? `call ${String(e.data.args.building_id ?? "")}` : e.data.description,
+          detail: e.data.description,
         }),
       };
-
-    case "call_transcript": {
-      const c = e.data;
-      return {
-        ...s,
-        calls: { ...s.calls, [c.call_id]: c },
-        callOrder: s.callOrder.includes(c.call_id) ? s.callOrder : [...s.callOrder, c.call_id],
-        focusId: c.building_id,
-        log: log(s, at, {
-          kind: "call",
-          text: `call ${c.building_id} · ${c.contact_role}`,
-          detail: `${c.consent ? "consented" : "declined"} · ${Math.round(c.duration_s)}s${c.stub ? " · STUB transcript" : ""}`,
-        }),
-      };
-    }
 
     case "findings_ready":
       return { ...s, findings: e.data, log: log(s, at, { kind: "analysis", text: "findings ready", detail: `${e.data.findings.length} findings · ${e.data.limitations.length} limitations` }) };

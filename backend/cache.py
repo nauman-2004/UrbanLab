@@ -3,7 +3,6 @@
 First run: results are computed live and written to data/cache/<kind>__<key>.json.
 Later runs: results are read back with a pacing delay so the whole cached
 section replays in about DEMO_REPLAY_SECONDS. Errors are never cached.
-The survey call is never cached.
 """
 
 from __future__ import annotations

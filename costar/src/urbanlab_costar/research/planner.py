@@ -30,13 +30,10 @@ class Capabilities:
     matterport_reason: str
     budgets: dict[str, int] = field(default_factory=dict)
     max_retries: int = 2
-    kit_joins: frozenset[str] = frozenset()
-    kit_join_reasons: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_settings(cls, settings: Settings, kit_fields: frozenset[str], kit_ready: bool,
-                      index_ready: bool, kit_joins: frozenset[str] = frozenset(),
-                      kit_join_reasons: dict[str, str] | None = None) -> Capabilities:
+                      index_ready: bool) -> Capabilities:
         v_ok, v_why = settings.live_allowed("vexcel")
         m_ok, m_why = settings.live_allowed("matterport")
         return cls(
@@ -45,7 +42,7 @@ class Capabilities:
             matterport_index=index_ready,
             matterport_api="live" if m_ok else "blocked", matterport_reason=m_why,
             budgets={"vexcel": settings.vexcel.max_requests, "matterport": settings.matterport.max_requests},
-            max_retries=settings.max_retries, kit_joins=kit_joins, kit_join_reasons=kit_join_reasons or {},
+            max_retries=settings.max_retries,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -54,14 +51,13 @@ class Capabilities:
             "vexcel": self.vexcel, "vexcel_reason": self.vexcel_reason,
             "matterport_index": self.matterport_index, "matterport_api": self.matterport_api,
             "matterport_reason": self.matterport_reason, "budgets": self.budgets,
-            "kit_joins": sorted(self.kit_joins), "kit_join_reasons": self.kit_join_reasons,
         }
 
 
 @dataclass
 class VariablePlan:
     variable: str
-    status: Literal["available", "requires_interview", "unavailable"]
+    status: Literal["available", "unavailable"]
     option: SourceOption | None
     rejected: list[tuple[str, str]] = field(default_factory=list)  # (requires, reason)
     requested: bool = True
@@ -138,13 +134,7 @@ def _check_option(opt: SourceOption, region: str, caps: Capabilities) -> str | N
         if arg == "rooms" and caps.matterport_api == "blocked":
             return f"Matterport API blocked: {caps.matterport_reason}"
         return None
-    if kind == "kitjoin":
-        if region not in geo.COVERAGE["costar"]:
-            return f"CoStar kit covers {sorted(geo.COVERAGE['costar'])} only"
-        if arg not in caps.kit_joins:
-            return caps.kit_join_reasons.get(arg, f"kit join '{arg}' is not configured")
-        return None
-    if kind in {"interview", "derived"}:
+    if kind == "derived":
         return None
     return f"unknown requirement {opt.requires}"
 
@@ -173,12 +163,9 @@ def plan_research(spec: ResearchSpec, caps: Capabilities, *, max_properties: int
                     subs = [resolve(i, False, (*stack, key)) for i in inputs]
                     bad = [s.variable for s in subs if s.status == "unavailable"]
                     why = f"inputs unavailable: {bad}" if bad else None
-            if why is None and opt.requires == "kitjoin:tenancy" and key == "occupancy_pct":
-                rba = resolve("building_area_sf", False, (*stack, key))
-                why = None if rba.status == "available" else "needs rentable building area (building_area_sf)"
             if why is None:
                 vp.option = opt
-                vp.status = "requires_interview" if opt.requires == "interview" else "available"
+                vp.status = "available"
                 break
             vp.rejected.append((opt.requires, why))
         plans[key] = vp
@@ -202,8 +189,6 @@ def plan_research(spec: ResearchSpec, caps: Capabilities, *, max_properties: int
     for vp in plans.values():
         if vp.requested and vp.status == "unavailable":
             warnings.append(f"{vp.variable}: unavailable ({'; '.join(r for _, r in vp.rejected)})")
-        if vp.requested and vp.status == "requires_interview":
-            warnings.append(f"{vp.variable}: only obtainable by interview (self-reported, unverified)")
 
     n = min(spec.sample_limit, max_properties or spec.sample_limit)
     if n < spec.sample_limit:
@@ -241,8 +226,8 @@ def study_plan_event_payload(plan: ResearchPlan, profile: str = "strict") -> dic
         if key is None or (profile == "strict" and not vp.option):
             continue
         source = vp.option.source.value if vp.option else (
-            vp.rejected and {"kit": "costar", "kitjoin": "costar", "vexcel": "vexcel", "matterport": "matterport",
-                             "interview": "interview", "derived": "derived"}.get(vp.rejected[0][0].split(":")[0])
+            vp.rejected and {"kit": "costar", "vexcel": "vexcel", "matterport": "matterport",
+                             "derived": "derived"}.get(vp.rejected[0][0].split(":")[0])
         ) or "derived"
         variables.append({"key": key, "label": vp.label, "source": source})
     region = geo.REGIONS[plan.spec.region].label

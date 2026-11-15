@@ -68,21 +68,20 @@ Every component reads the **single root `.env`**; there is no `.env` inside `cos
 
 ## Data provenance
 
-Every value is a `Value` with `source` (costar / vexcel / matterport / interview / derived), `method`, `verification`, optional `confidence` and `uncertainty`, and an `evidence.ref`. The possible methods:
+Every value is a `Value` with `source` (costar / vexcel / matterport / derived), `method`, `verification`, optional `confidence` and `uncertainty`, and an `evidence.ref`. The possible methods:
 
 | Method | Meaning | Example |
 |---|---|---|
 | `observed` | read from a record | CoStar year built |
 | `computed` | UrbanLab arithmetic on observed input | lot area from the Vexcel parcel polygon |
 | `model_estimate` | a model produced it | surface parking from Vexcel `elements/detect`, footprints, Matterport room types |
-| `self_reported` | a person said it; starts `unverified` | interview answers |
 
 Derived values inherit the weakest input. A share built from an estimate stays an estimate. Missing data is always an explicit `Gap` with a `kind` and `reason`, never a default value.
 
 **Limits that are deliberate:**
 - Matterport scans are **never** used for parking or garage capacity.
 - Imagery is never used to infer parking ownership or leases.
-- Off-site parking is interview-only.
+- Off-site parking isn't collected: no source records it.
 - A planner picks **one source per variable** per study, so values stay comparable. For example, lot area comes from the kit if that field is mapped, otherwise from the Vexcel parcel.
 
 ## Package layout
@@ -103,7 +102,6 @@ src/urbanlab_costar/
   research/        variables (catalog + honest sources), spec (+ JSON schema),
                    planner (source choice, gaps, request estimate), pipeline (run + events)
   events.py        StudyEvent serializer + validator mirroring frontend/src/lib/events.ts
-  interviews.py    interface for interview-derived values (no calls placed here)
   dataset.py       provenance-aware dataset, CSV/JSON export
   runtime.py       wiring for synthetic / real modes
   tools.py         JSON-in/out functions for the agent
@@ -118,11 +116,7 @@ Wrap the functions in `urbanlab_costar.tools` with your tool decorator:
 2. `describe_capabilities(mode)`: the variables, configured sources and coverage. Makes no requests.
 3. `plan_research_tool(spec, mode)`: the per-variable source and method, unavailable variables with reasons, and `requests` / `worst_case_requests_with_retries` against the budgets. Use `needs_live_requests` to trigger `approval.requested`.
 4. `run_research_tool(spec, mode, approved_live_requests=..., emit=callback)`: streams strict-contract `StudyEvent`s to `emit` (forward them over SSE). It returns the dataset, gaps, warnings and requests used.
-5. **Interviews** (owned by the Cartesia teammate):
-   - `interviews.interview_requests(dataset)` lists the gaps that need a person.
-   - `InterviewAnswer(...).to_value()` / `apply_answer(...)` record an answer as self-reported and **unverified**, with the quote and timestamp.
-
-The agent still owns approval, interviews, `analysis.started` and `report.ready`. The frontend computes the statistics.
+The agent still owns approval, `analysis.started` and `report.ready`. The frontend computes the statistics.
 
 ## Matterport embed (for the frontend)
 
@@ -162,8 +156,8 @@ Also delete manually:
 ## Known limitations
 
 - The real field map lives only in `costar/.local/`, so each teammate creates their own. Ask the CoStar owner for a copy over a private channel; never use git for it.
-- **Occupancy** is the *recorded tenant occupancy*: occupied SF of current tenancies divided by RBA, on the kit snapshot date (`[kit] as_of`). It's only reported when every current tenancy has an area and the result is at most 100%. It is **not** a vacancy rate.
-- **Vacancy** is only what the kit records (apartment communities). Office vacancy isn't derived from tenancies, following the kit's guidance.
+- **Occupancy isn't collected.** The kit has no occupancy field on property records.
+- **Vacancy** is only what the kit records (apartment communities).
 - Listings and sale comps aren't joined yet.
 - The kit has no explicit garage-stall field. Covered spaces are exposed as `parking_spaces_covered`, but they're **not** treated as `garage_stalls`.
 - The geofence boxes are approximate pre-checks. The provider's response is authoritative.

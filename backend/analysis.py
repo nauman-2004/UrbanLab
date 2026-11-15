@@ -113,8 +113,9 @@ def run(store: DatasetStore) -> dict[str, Any]:
             )
         effects.append(eff)
 
+    # Chart the first aerial-measured outcome if there is one, else the first comparable outcome.
     primary = next((e["variable"] for e in effects if "diff_older_minus_newer" in e
-                    and VARIABLE_CATALOG[e["variable"]]["source"] == "survey"), None) or \
+                    and VARIABLE_CATALOG[e["variable"]]["source"] == "vexcel"), None) or \
         next((e["variable"] for e in effects if "diff_older_minus_newer" in e), None)
     chart_spec = _chart(primary, by_decade) if primary else None
 
@@ -156,10 +157,6 @@ def _limitations(store: DatasetStore, df: pd.DataFrame, outcomes: list[str]) -> 
         miss = sum(1 for c in cells if c["variable"] == var and c["status"] == "missing")
         if miss:
             out.append(f"{var}: {miss} of {len(store.buildings)} buildings missing.")
-    if any(c["source"] == "survey" and c["status"] == "filled" for c in cells):
-        out.append("Survey values are self-reported by property managers and unverified.")
-    if any(str(c.get("evidence_ref") or "").startswith("STUB") for c in cells):
-        out.append("Survey transcripts came from the telephony STUB, not real calls; do not report these values.")
     sources = {b.get("costar_source") for b in store.buildings.values()}
     if "sample" in sources or any(str(b.get("costar_id", "")).startswith("SAMPLE") for b in store.buildings.values()):
         out.append("Property records come from the placeholder CoStar sample CSV, not the CoStar data kit.")
@@ -168,5 +165,4 @@ def _limitations(store: DatasetStore, df: pd.DataFrame, outcomes: list[str]) -> 
                    "not CoStar's. Do not report these values.")
     if any(c["source"] == "vexcel" and c["status"] == "filled" for c in cells):
         out.append("Aerial measurements are vision-model estimates of surface parking; structured garages are excluded.")
-    out.append("Survey targets were chosen by the agent, not at random, so survey-based estimates may be biased.")
     return out

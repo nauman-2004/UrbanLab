@@ -28,12 +28,14 @@ def test_demo_cache_skips_errors(tmp_path, monkeypatch):
     assert not list(tmp_path.iterdir())
 
 
-def test_openrouter_image_payload():
-    """The vision message must convert to an OpenAI-style image_url data URI for OpenRouter (no network)."""
+def test_gemini_image_payload():
+    """The vision message must convert to a Gemini inline-data image part with the tile's bytes (no network)."""
     import base64
-    from langchain_openrouter.chat_models import _format_message_content
+    from langchain_google_genai.chat_models import _convert_to_parts
     tile = next(config.TILES_DIR.glob("*.png"))
-    b64 = base64.b64encode(tile.read_bytes()).decode()
-    parts = _format_message_content([
-        {"type": "text", "text": "x"}, {"type": "image", "base64": b64, "mime_type": "image/png"}])
-    assert parts[1] == {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}}
+    raw = tile.read_bytes()
+    parts = _convert_to_parts([
+        {"type": "text", "text": "x"},
+        {"type": "image", "base64": base64.b64encode(raw).decode(), "mime_type": "image/png"}])
+    assert parts[0].text == "x"
+    assert parts[1].inline_data.mime_type == "image/png" and parts[1].inline_data.data == raw

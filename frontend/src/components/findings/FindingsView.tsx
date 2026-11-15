@@ -45,7 +45,7 @@ export function FindingsView() {
   const cells = Object.values(state.cells);
   const total = state.order.length * (state.plan?.variables.length ?? 0);
   const filled = cells.filter((c) => c.status === "filled").length;
-  const bySource = (["costar", "vexcel", "survey"] as Source[]).map((s) => ({ s, n: cells.filter((c) => c.source === s && c.status === "filled").length }));
+  const bySource = (["costar", "vexcel"] as Source[]).map((s) => ({ s, n: cells.filter((c) => c.source === s && c.status === "filled").length }));
   const compared = (f?.effects ?? []).filter((e) => e.diff_older_minus_newer != null || e.note);
   const chartTitle = f?.chart_spec?.title;
   const chartValues = f?.chart_spec?.data?.values ?? [];
@@ -84,7 +84,7 @@ export function FindingsView() {
           <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
             <Stat value={String(f?.n_buildings ?? state.order.length)} label="buildings in the sample" />
             <Stat value={total ? `${Math.round((filled / total) * 100)}%` : "—"} tone="text-voice" label={`dataset coverage · ${filled}/${total} cells`} />
-            <Stat value={String(state.callOrder.length)} label="phone surveys placed" />
+            <Stat value={String(state.order.filter((id) => state.buildings[id]?.aerial_url).length)} label="buildings with aerial imagery" />
             <Stat value={String(f?.limitations.length ?? 0)} tone="text-unverified" label="limitations reported" />
           </div>
 
@@ -201,7 +201,7 @@ export function FindingsView() {
               <ul className="space-y-1.5">
                 {f.limitations.map((l) => (
                   <li key={l} className="relative pl-3.5 text-soft">
-                    <span className={`absolute top-1.5 left-0 size-1.5 rounded-full ${/stub|placeholder|unverified|self-reported/i.test(l) ? "bg-unverified" : "bg-vexcel"}`} />
+                    <span className={`absolute top-1.5 left-0 size-1.5 rounded-full ${/stub|placeholder|synthetic|sample/i.test(l) ? "bg-unverified" : "bg-vexcel"}`} />
                     {l}
                   </li>
                 ))}

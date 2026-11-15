@@ -21,8 +21,7 @@ import config
 import events
 import integrations
 import llm
-import telephony
-from dataset import UNOBSERVABLE_REASON, VARIABLE_CATALOG, DatasetStore, get_store
+from dataset import VARIABLE_CATALOG, DatasetStore, get_store
 
 CURRENT_STUDY: contextvars.ContextVar[str | None] = contextvars.ContextVar("CURRENT_STUDY", default=None)
 
@@ -51,7 +50,7 @@ def _json(obj: Any) -> str:
 # ============================================================== planner ====
 class PlanVariable(BaseModel):
     name: str = Field(description="Variable name from the catalog.")
-    source: Literal["costar", "vexcel", "survey"]
+    source: Literal["costar", "vexcel"]
     type: str = Field(description="int | float | bool | category")
 
 
@@ -130,7 +129,7 @@ def plan_needs_review(request: Any) -> bool:
 
 
 # ======================================================= data_collector ====
-_COSTAR_FIELDS = ["year_built", "rba_sf", "lot_sf", "building_class", "occupancy_pct", "parking_spaces", "parking_ratio"]
+_COSTAR_FIELDS = ["year_built", "rba_sf", "lot_sf", "building_class", "parking_spaces", "parking_ratio"]
 
 
 def _coerce(name: str, raw: Any) -> Any:
@@ -286,9 +285,9 @@ _emitted_gaps: set[tuple[str, str, str]] = set()
 
 def check_coverage() -> str:
     """Compare the dataset against the approved plan. Returns, per building, the missing
-    variables and why, plus the buildings that need a phone survey."""
+    variables and why."""
     store = _store()
-    report, survey_needed = [], []
+    report = []
     for bid in store.buildings:
         missing = []
         for v in store.planned_variables():
@@ -296,103 +295,16 @@ def check_coverage() -> str:
             if cell and cell["status"] == "filled":
                 continue
             reason = (cell or {}).get("reason") or "Not collected."
-            if v["source"] == "survey" and reason in {"Not yet collected.", "Not collected."}:
-                reason = UNOBSERVABLE_REASON["survey"]
-                store.mark_missing(bid, v["name"], "survey", reason)
             missing.append({"variable": v["name"], "source": v["source"], "reason": reason})
             key = (store.study_id, bid, v["name"])
             if key not in _emitted_gaps:
                 _emitted_gaps.add(key)
                 events.emit(store.study_id, "gap_detected",
                             {"building_id": bid, "variable": v["name"], "source": v["source"], "reason": reason})
-        if any(m["source"] == "survey" for m in missing):
-            survey_needed.append(bid)
         report.append({"building_id": bid, "name": store.buildings[bid].get("name"), "missing": missing})
     total = len(store.buildings) * len(store.planned_variables())
     filled = sum(1 for c in store.cells.values() if c["status"] == "filled")
-    return _json({"coverage": f"{filled}/{total} cells filled", "buildings": report,
-                  "survey_needed": survey_needed, "max_survey_calls": config.SURVEY_MAX_CALLS})
-
-
-# ======================================================= field_surveyor ====
-_calls_done: dict[str, set[str]] = {}
-
-
-def survey_call_needs_review(request: Any) -> bool:
-    """`when` predicate: only interrupt for calls that would actually be placed."""
-    args = request.tool_call.get("args", {})
-    return _survey_precheck(args.get("building_id"), args.get("questions"), _study_id()) is None
-
-
-def _survey_precheck(building_id: str | None, questions: Any, study_id: str) -> str | None:
-    store = get_store(study_id)
-    if building_id not in store.buildings:
-        return f"Unknown building_id {building_id!r}."
-    if not questions:
-        return "questions must be a non-empty list."
-    done = _calls_done.setdefault(study_id, set())
-    if building_id in done:
-        return f"{building_id} was already surveyed."
-    if len(done) >= config.SURVEY_MAX_CALLS:
-        return f"Survey call limit reached ({config.SURVEY_MAX_CALLS})."
-    if not [v for v in store.planned_variables() if v["source"] == "survey"]:
-        return "The plan has no survey variables."
-    return None
-
-
-def request_survey_call(building_id: str, questions: list[str]) -> str:
-    """Phone the building's property manager with survey questions. REQUIRES HUMAN APPROVAL.
-
-    Answers are extracted from the transcript and written as survey cells.
-
-    Args:
-        building_id: Building to call, e.g. "B-03".
-        questions: Short, neutral questions, one per survey variable to fill.
-    """
-    store = _store()
-    if err := _survey_precheck(building_id, questions, store.study_id):
-        return _json({"error": err})
-    _calls_done[store.study_id].add(building_id)
-    building = store.buildings[building_id]
-    survey_vars = [v for v in store.planned_variables() if v["source"] == "survey"]
-    try:
-        result = telephony.start_call(building, list(questions))
-    except Exception as e:  # noqa: BLE001
-        for v in survey_vars:
-            store.mark_missing(building_id, v["name"], "survey", f"Call failed: {e}")
-        return _json({"building_id": building_id, "error": f"Call failed: {e}"})
-
-    events.emit(store.study_id, "call_transcript", {
-        "building_id": building_id, "call_id": result.call_id, "contact_role": result.contact_role,
-        "consent": result.consent, "transcript": result.transcript, "duration_s": result.duration_s, "stub": result.stub,
-    })
-    if not result.consent:
-        for v in survey_vars:
-            store.mark_missing(building_id, v["name"], "survey", "Contact declined to take part.", result.call_id)
-        return _json({"building_id": building_id, "consent": False})
-
-    targets = {v["name"]: f"{VARIABLE_CATALOG[v['name']]['label']} ({v['type']}; booleans as 1 or 0)" for v in survey_vars}
-    try:
-        extraction = llm.extract_survey_answers(result.transcript, targets)
-    except Exception as e:  # noqa: BLE001
-        for v in survey_vars:
-            store.mark_missing(building_id, v["name"], "survey", f"Transcript extraction failed: {e}", result.call_id)
-        return _json({"building_id": building_id, "call_id": result.call_id, "error": f"Extraction failed: {e}"})
-
-    prefix = "STUB " if result.stub else ""
-    got = {a.variable: a for a in extraction.answers}
-    written = []
-    for v in survey_vars:
-        a = got.get(v["name"])
-        if a is None or a.value is None or not a.quote:
-            store.mark_missing(building_id, v["name"], "survey", "Contact did not clearly answer.", f"{prefix}{result.call_id}")
-            continue
-        value = int(a.value) if v["type"] in {"int", "bool"} else float(a.value)
-        ts = f"{int(a.t or 0) // 60:02d}:{int(a.t or 0) % 60:02d}"
-        store.set_cell(building_id, v["name"], value, "survey", a.confidence,
-                       f'{prefix}{result.call_id} @ {ts}: "{a.quote}"', note="Self-reported, unverified.")
-        written.append({"variable": v["name"], "value": value, "confidence": a.confidence})
-    return _json({"building_id": building_id, "call_id": result.call_id, "answers": written, "stub": result.stub})
+    return _json({"coverage": f"{filled}/{total} cells filled", "buildings": report})
 
 
 # ============================================================== analyst ====

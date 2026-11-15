@@ -3,7 +3,6 @@ import type { Source } from "@/lib/types";
 export const SOURCE_META: Record<Source, { label: string; color: string; text: string; bg: string }> = {
   costar: { label: "CoStar", color: "var(--color-costar)", text: "text-costar", bg: "bg-costar" },
   vexcel: { label: "Vexcel", color: "var(--color-vexcel)", text: "text-vexcel", bg: "bg-vexcel" },
-  survey: { label: "Survey", color: "var(--color-voice)", text: "text-voice", bg: "bg-voice" },
 };
 
 const meta = (source: string) => SOURCE_META[source as Source] ?? { label: source, color: "var(--color-derived)", text: "text-derived", bg: "bg-derived" };
@@ -26,18 +25,6 @@ export function VarChip({ source, children, title }: { source: string; children:
     <span title={title} className="inline-flex items-center gap-1.5 rounded-md border border-line2 bg-[#0c1023] px-1.5 py-0.5 font-mono text-[10.5px] text-soft">
       <SourceDot source={source} />
       {children}
-    </span>
-  );
-}
-
-/** Survey answers are self-reported by a property manager. Never hidden. */
-export function SelfReportedBadge({ compact }: { compact?: boolean }) {
-  return (
-    <span
-      title="Self-reported in a phone survey — not independently verified"
-      className="inline-flex items-center gap-1 rounded-[4px] bg-unverified/15 px-1 py-px text-[9px] font-bold tracking-wide whitespace-nowrap text-unverified"
-    >
-      ⚠ {compact ? "UNVERIFIED" : "SELF-REPORTED · UNVERIFIED"}
     </span>
   );
 }

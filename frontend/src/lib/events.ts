@@ -8,7 +8,7 @@
  *
  * See docs/INTEGRATION.md.
  */
-import type { Approval, Building, Call, Cell, Findings, Source, StudyPlan } from "./types";
+import type { Approval, Building, Cell, Findings, Source, StudyPlan } from "./types";
 
 interface Envelope<T extends string, D> {
   type: T;
@@ -31,7 +31,6 @@ export type StudyEvent =
   | Envelope<"cell_updated", { cell: Cell }>
   | Envelope<"gap_detected", { building_id: string; variable: string; source: Source; reason: string }>
   | Envelope<"approval_required", Omit<Approval, "status">>
-  | Envelope<"call_transcript", Call>
   | Envelope<"findings_ready", Findings>
   | Envelope<"study_completed", { summary: string | null }>
   | Envelope<"study_failed", { error: string; trace?: string }>;
@@ -49,7 +48,6 @@ export const EVENT_TYPES: StudyEventType[] = [
   "cell_updated",
   "gap_detected",
   "approval_required",
-  "call_transcript",
   "findings_ready",
   "study_completed",
   "study_failed",

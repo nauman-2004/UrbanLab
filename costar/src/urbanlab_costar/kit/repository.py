@@ -19,7 +19,7 @@ from .mapping import UNIT_FACTORS_TO_SF, DatasetMapping, Extracted, FieldMap, Ma
 
 NUMERIC_FIELDS = {
     "lat", "lon", "year_built", "building_area_sf", "land_area_sf", "parking_spaces",
-    "garage_stalls", "parking_ratio", "occupancy_pct", "vacancy_pct", "stories",
+    "garage_stalls", "parking_ratio", "vacancy_pct", "stories",
 }
 INT_FIELDS = {"year_built", "parking_spaces", "garage_stalls", "stories"}
 TEXT_FIELDS = {"name", "address", "city", "state", "property_type", "building_class"}

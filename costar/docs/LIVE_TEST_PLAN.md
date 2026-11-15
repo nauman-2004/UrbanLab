@@ -17,7 +17,7 @@ Nothing in this document has been run. Each step needs its own approval. Budgets
   - Output stays in the local terminal and `costar/.local/`.
   - Nothing is extracted, committed or sent anywhere.
   - Field paths are confidential, so they aren't pasted into chats or PRs.
-- **Done when:** `plan --mode real` shows the Houston office sample and which of `year_built`, `building_area_sf`, `land_area_sf`, `parking_*`, `garage_stalls` and `occupancy_pct` really exist.
+- **Done when:** `plan --mode real` shows the Houston office sample and which of `year_built`, `building_area_sf`, `land_area_sf`, `parking_*` and `garage_stalls` really exist.
 
 ## Step 2: Vexcel smoke test, 1 property (max 2 requests)
 

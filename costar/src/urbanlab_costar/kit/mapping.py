@@ -43,7 +43,6 @@ PROPERTY_FIELDS: dict[str, str] = {
     "parking_spaces": "Total parking spaces",
     "garage_stalls": "Structured / garage parking spaces",
     "parking_ratio": "Parking spaces per 1,000 sq ft",
-    "occupancy_pct": "Percent occupied / leased",
     "vacancy_pct": "Percent vacant",
     "stories": "Number of stories",
 }
@@ -101,7 +100,7 @@ class FieldMap:
     datasets: Mapping[str, DatasetMapping]
     source_path: Path | None = None
     enums_member: str | None = None
-    as_of: str | None = None  # snapshot date of the kit (ISO), for "current" tenancies
+    as_of: str | None = None  # snapshot date of the kit (ISO)
     # region key -> accepted values of the canonical ``region_field`` (e.g. market ids)
     regions: Mapping[str, frozenset[str]] = field(default_factory=dict)
     region_field: str = "market_id"

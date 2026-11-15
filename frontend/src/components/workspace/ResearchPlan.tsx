@@ -11,7 +11,6 @@ const STEP_LABEL: Record<string, string> = {
   data_collector: "Pull CoStar records",
   vision_measurer: "Measure parking from aerials",
   gap_analyst: "Check coverage & gaps",
-  field_surveyor: "Phone surveys (approved)",
   analyst: "Analyze & report",
 };
 

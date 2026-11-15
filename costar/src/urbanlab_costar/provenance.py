@@ -5,15 +5,13 @@
 - ``observed``       : read directly from a record or measured by a provider
 - ``computed``       : calculated by UrbanLab from observed inputs (e.g. parcel area from a polygon)
 - ``model_estimate`` : produced by a model (segmentation, classification); carries confidence
-- ``self_reported``  : said by a person (interview); starts ``unverified``
 
-``verification`` follows the frontend contract: ``observed`` for non-self-reported
-values, ``unverified``/``verified`` for self-reported ones.
+``verification`` follows the frontend contract; every value here is ``observed``.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
@@ -22,7 +20,6 @@ class Source(StrEnum):
     COSTAR = "costar"
     VEXCEL = "vexcel"
     MATTERPORT = "matterport"
-    INTERVIEW = "interview"
     DERIVED = "derived"
 
 
@@ -30,17 +27,14 @@ class Method(StrEnum):
     OBSERVED = "observed"
     COMPUTED = "computed"
     MODEL_ESTIMATE = "model_estimate"
-    SELF_REPORTED = "self_reported"
 
 
 class Verification(StrEnum):
     OBSERVED = "observed"
-    UNVERIFIED = "unverified"
-    VERIFIED = "verified"
 
 
 # Weakest-link ordering used when combining inputs.
-_STRENGTH = {Method.OBSERVED: 0, Method.COMPUTED: 1, Method.MODEL_ESTIMATE: 2, Method.SELF_REPORTED: 3}
+_STRENGTH = {Method.OBSERVED: 0, Method.COMPUTED: 1, Method.MODEL_ESTIMATE: 2}
 
 
 @dataclass(frozen=True)
@@ -69,23 +63,8 @@ class Value:
             raise ValueError(f"{self.variable}: a Value cannot be None; record a Gap instead")
         if self.confidence is not None and not (0.0 <= self.confidence <= 1.0):
             raise ValueError(f"{self.variable}: confidence must be within [0, 1]")
-        if self.method is Method.SELF_REPORTED:
-            if self.verification in (None, Verification.OBSERVED):
-                object.__setattr__(self, "verification", Verification.UNVERIFIED)
-        elif self.verification is None:
+        if self.verification is None:
             object.__setattr__(self, "verification", Verification.OBSERVED)
-        elif self.verification is not Verification.OBSERVED and not self.inputs:
-            raise ValueError(f"{self.variable}: only self-reported values can be unverified/verified")
-
-    def verified(self, evidence_ref: str) -> Value:
-        if self.method is not Method.SELF_REPORTED:
-            raise ValueError("only self-reported values need verification")
-        note = f"verified: {evidence_ref}"
-        return replace(
-            self,
-            verification=Verification.VERIFIED,
-            evidence=replace(self.evidence, note=f"{self.evidence.note}; {note}" if self.evidence.note else note),
-        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -106,7 +85,6 @@ class GapKind(StrEnum):
     NOT_MAPPED = "not_mapped"  # the kit field map has no path for this variable
     MISSING_IN_RECORD = "missing_in_record"
     NO_SOURCE = "no_source"  # no digital source can observe it
-    REQUIRES_INTERVIEW = "requires_interview"
     OUT_OF_COVERAGE = "out_of_coverage"
     NOT_FOUND = "not_found"  # provider had no record (e.g. Vexcel 404)
     BUDGET = "budget"
@@ -151,7 +129,6 @@ def derive_ratio(variable: str, numerator: Value | Gap | None, denominator: Valu
         return Gap(variable, GapKind.ERROR, f"{denominator.variable} is not positive", Source.DERIVED)
     method = combine_method(numerator.method, denominator.method)
     confs = [c for c in (numerator.confidence, denominator.confidence) if c is not None]
-    self_rep = Method.SELF_REPORTED in (numerator.method, denominator.method)
     return Value(
         variable=variable,
         value=round(num / den * scale, 4),
@@ -160,7 +137,7 @@ def derive_ratio(variable: str, numerator: Value | Gap | None, denominator: Valu
         method=method,
         confidence=min(confs) if confs else None,
         uncertainty="inherits uncertainty of a model estimate" if method is Method.MODEL_ESTIMATE else None,
-        verification=Verification.UNVERIFIED if self_rep else Verification.OBSERVED,
+        verification=Verification.OBSERVED,
         evidence=EvidenceRef(
             ref=f"{numerator.variable} / {denominator.variable}",
             note=note or f"computed from {numerator.source.value} ({numerator.method.value}) and "

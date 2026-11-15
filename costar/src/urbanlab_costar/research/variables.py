@@ -8,9 +8,7 @@ by the planner against what is actually configured:
 - ``vexcel:detect``      one elements/detect request per property (+ the parcel request)
 - ``matterport:index``   local models index (0 requests)
 - ``matterport:rooms``   one GraphQL request per property with a linked model
-- ``interview``          only obtainable by asking a person (self-reported)
 - ``derived:<a>,<b>``    computed from other variables
-- ``kitjoin:tenancy``    joined from the kit's tenancy dataset (0 requests)
 """
 
 from __future__ import annotations
@@ -42,8 +40,6 @@ def _kit(f: str, note: str = "") -> SourceOption:
     return SourceOption(Source.COSTAR, Method.OBSERVED, f"kit:{f}", note)
 
 
-_INTERVIEW = SourceOption(Source.INTERVIEW, Method.SELF_REPORTED, "interview",
-                          "self-reported; stays unverified until independently confirmed")
 _NOT_MATTERPORT = {
     "matterport": "Matterport scans cover interior spaces (often one suite or unit) and are not used "
                   "to infer parking or garage capacity"
@@ -62,38 +58,19 @@ VARIABLES: dict[str, Variable] = {v.key: v for v in [
     ), "surfaceSf", _NOT_MATTERPORT),
     Variable("garage_stalls", "Garage (structured) parking stalls", "stalls", (
         _kit("garage_stalls", "only if a source field explicitly records garage / structured stalls"),
-        _INTERVIEW,
     ), "garageStalls", {
         **_NOT_MATTERPORT,
         "costar": "the kit records 'Covered' parking, which is not necessarily a garage; covered spaces are "
                   "reported separately as parking_spaces_covered",
         "vexcel": "aerial imagery cannot count stalls inside a structure",
     }),
-    Variable("offsite_spaces", "Off-site leased parking spaces", "spaces", (_INTERVIEW,), "offsiteSpaces", {
-        **_NOT_MATTERPORT,
-        "vexcel": "imagery cannot establish parking ownership or lease arrangements",
-        "costar": "no documented kit field records off-site leases",
-    }),
     Variable("parking_spaces", "Total parking spaces (CoStar-reported count)", "spaces", (
-        _kit("parking_spaces", "CoStar-reported count across all parking types"), _INTERVIEW)),
+        _kit("parking_spaces", "CoStar-reported count across all parking types"),)),
     Variable("parking_ratio", "Parking ratio", "per 1,000 sf", (_kit("parking_ratio"),)),
     Variable("property_type", "Property type", None, (_kit("property_type"),)),
     Variable("building_class", "Building class", None, (_kit("building_class"),)),
-    Variable("occupancy_pct", "Occupancy (recorded)", "%", (
-        _kit("occupancy_pct", "occupancy field recorded on the property"),
-        SourceOption(Source.COSTAR, Method.COMPUTED, "kitjoin:tenancy",
-                     "recorded tenant occupancy: occupied SF of current tenancies / RBA; not a vacancy rate"),
-    )),
     Variable("vacancy_pct", "Vacancy (recorded)", "%", (
         _kit("vacancy_pct", "vacancy recorded on the property record (multifamily communities in this kit)"),
-    ), excluded_sources={"costar_tenancies": "kit guidance: tenancy occupancy must not be used as a vacancy "
-                                             "numerator"}),
-    Variable("tenancy_count_current", "Current tenancies on record", "tenancies", (
-        SourceOption(Source.COSTAR, Method.COMPUTED, "kitjoin:tenancy", "tenancies current on the kit snapshot date"),
-    )),
-    Variable("occupied_sf_current", "Occupied area of current tenancies", "sf", (
-        SourceOption(Source.COSTAR, Method.COMPUTED, "kitjoin:tenancy",
-                     "sum of occupied SF; only when every current tenancy has an area"),
     )),
     Variable("stories", "Stories", "floors", (_kit("stories"),)),
     Variable("gross_building_area_sf", "Gross building area", "sf", (_kit("gross_building_area_sf"),)),
