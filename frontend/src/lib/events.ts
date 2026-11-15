@@ -4,7 +4,6 @@
  * These are exactly the events backend/events.py emits over SSE
  * (`GET /studies/{id}/events`, one JSON object per `data:` line, `event:` = type).
  * The UI is a pure function of this stream (see `state/reducer.ts`).
- * Replay mode plays a recorded copy of the same stream (`replay/recorded-study.json`).
  *
  * See docs/INTEGRATION.md.
  */

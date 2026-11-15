@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import type { ApprovalDecision, StudyEvent } from "../events";
 import { LiveSource } from "../source/live";
-import { ReplaySource } from "../source/replay";
 import type { SourceStatus, StudySource } from "../source/types";
 import { initialState, studyReducer, type StudyState } from "./reducer";
 
@@ -13,20 +12,15 @@ interface StudyContextValue {
   state: StudyState;
   status: SourceStatus;
   statusDetail: string | null;
-  sourceKind: "replay" | "live";
-  speed: number;
   /** Study clock (ms), refreshed ~4×/s while running. */
   clock: number;
   selectedId: string | null;
   start(question: string): void;
-  togglePause(): void;
-  setSpeed(n: number): void;
   answer(decisions: ApprovalDecision[]): Promise<void>;
   resolveUrl(path: string | undefined): string | null;
   select(id: string | null): void;
 }
 
-const SOURCE_KIND: "replay" | "live" = process.env.NEXT_PUBLIC_STUDY_SOURCE === "live" ? "live" : "replay";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
 const StudyContext = createContext<StudyContextValue | null>(null);
@@ -35,7 +29,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(studyReducer, initialState);
   const [status, setStatus] = useState<SourceStatus>("idle");
   const [statusDetail, setStatusDetail] = useState<string | null>(null);
-  const [speed, setSpeedState] = useState(1);
   const [clock, setClock] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const sourceRef = useRef<StudySource | null>(null);
@@ -49,7 +42,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
         setClock(sourceRef.current?.now() ?? 0);
       },
     };
-    sourceRef.current = SOURCE_KIND === "live" ? new LiveSource(API_BASE, listener) : new ReplaySource(listener);
+    sourceRef.current = new LiveSource(API_BASE, listener);
     return () => sourceRef.current?.stop();
   }, []);
 
@@ -64,18 +57,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "reset", question });
     setSelectedId(null);
     sourceRef.current?.start(question);
-  }, []);
-
-  const togglePause = useCallback(() => {
-    const s = sourceRef.current;
-    if (!s) return;
-    if (status === "playing") s.pause();
-    else if (status === "paused") s.resume();
-  }, [status]);
-
-  const setSpeed = useCallback((n: number) => {
-    setSpeedState(n);
-    sourceRef.current?.setSpeed(n);
   }, []);
 
   const answer = useCallback(async (decisions: ApprovalDecision[]) => {
@@ -98,18 +79,14 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       state,
       status,
       statusDetail,
-      sourceKind: SOURCE_KIND,
-      speed,
       clock,
       selectedId,
       start,
-      togglePause,
-      setSpeed,
       answer,
       resolveUrl,
       select: setSelectedId,
     }),
-    [state, status, statusDetail, speed, clock, selectedId, start, togglePause, setSpeed, answer, resolveUrl],
+    [state, status, statusDetail, clock, selectedId, start, answer, resolveUrl],
   );
 
   return <StudyContext.Provider value={value}>{children}</StudyContext.Provider>;

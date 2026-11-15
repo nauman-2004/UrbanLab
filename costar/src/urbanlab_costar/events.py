@@ -11,7 +11,7 @@ Two profiles:
   carried inside ``evidence.note`` / ``evidence.confidence``.
 - ``extended``: ALSO adds an optional ``cell.provenance`` object and emits
   catalog variables under their own keys. This is a PROPOSED, not yet
-  approved contract extension (see costar/docs/CONTRACT_PROPOSAL.md).
+  approved contract extension.
 """
 
 from __future__ import annotations

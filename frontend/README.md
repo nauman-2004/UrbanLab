@@ -16,10 +16,9 @@ cd frontend
 npm install          # first time only
 npm run dev          # agent (real models via Google Gemini) + UI → http://localhost:3000, click "Run study"
 npm run dev:fake     # agent with the scripted test model: no API key or quota needed
-npm run dev:demo     # UI only, replaying a recorded study (src/lib/replay/recorded-study.json)
 ```
 
-From the repo root, `dev` (Windows) or `./dev.sh` (macOS/Linux) does the same; add `fake` or `demo`.
+From the repo root, `dev` (Windows) or `./dev.sh` (macOS/Linux) does the same; add `fake` for the test model.
 Both logs stream in one terminal (`[agent]` and `[web]`), and Ctrl+C stops both.
 If a backend is already running on port 8000, the launcher reuses it.
 
@@ -52,8 +51,7 @@ src/
     events.ts              ★ StudyEvent — the backend's SSE events (the contract)
     types.ts               domain model mirroring backend/dataset.py (Cell = value + source + evidence + reason)
     state/                 reducer (events → state) + React provider
-    source/                StudySource interface: LiveSource (SSE + /approve) · ReplaySource (recorded run)
-    replay/                recorded-study.json (written by backend/scripts/record_replay.py)
+    source/                StudySource interface and LiveSource (SSE + /approve)
     format.ts, csv.ts      value formatting, dataset export with per-value provenance
 ```
 
@@ -64,4 +62,3 @@ src/
 - **No numbers are computed in the UI.** Findings, CIs and limitations are rendered exactly as the backend's `analysis.py` produced them.
 
 See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the event contract and endpoints.
-Design references for the approved V2 UI are in `../docs/design/v2/`.

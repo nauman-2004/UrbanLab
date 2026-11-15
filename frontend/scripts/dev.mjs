@@ -3,15 +3,14 @@
 //
 //   npm run dev            real models via the Google Gemini API (~30 requests per study)
 //   npm run dev:fake       scripted test model: no API key, no quota
-//   npm run dev:demo       frontend only, replaying a recorded study
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const mode = process.argv[2] ?? "live";
-if (!["live", "fake", "demo"].includes(mode)) {
-  console.error("usage: node scripts/dev.mjs [live|fake|demo]");
+if (!["live", "fake"].includes(mode)) {
+  console.error("usage: node scripts/dev.mjs [live|fake]");
   process.exit(1);
 }
 const frontend = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -66,7 +65,7 @@ async function healthy() {
   }
 }
 
-if (mode !== "demo") {
+{
   if (mode === "live") {
     const env = existsSync(path.resolve(frontend, "..", ".env")) ? readFileSync(path.resolve(frontend, "..", ".env"), "utf8") : "";
     if (!/^GOOGLE_API_KEY=\S/m.test(env)) {
@@ -98,6 +97,6 @@ if (mode !== "demo") {
 console.log("Starting the frontend...");
 run("web", "36", "npx", ["next", "dev", "--port", "3000"], {
   cwd: frontend,
-  env: { ...process.env, NEXT_PUBLIC_STUDY_SOURCE: mode === "demo" ? "replay" : "live", NEXT_PUBLIC_API_BASE: API },
+  env: { ...process.env, NEXT_PUBLIC_API_BASE: API },
 });
-console.log(`\n  ➜ Open http://localhost:3000 and click "Run study" (${mode === "demo" ? "recorded demo" : `agent: ${mode}`})\n`);
+console.log(`\n  ➜ Open http://localhost:3000 and click "Run study" (agent: ${mode})\n`);

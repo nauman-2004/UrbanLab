@@ -163,4 +163,4 @@ Also delete manually:
 - The geofence boxes are approximate pre-checks. The provider's response is authoritative.
 - Surface parking is a bounding-box union of SAM3 detections, so it overstates irregular lots. The more precise mask-based polygons aren't implemented yet. Plan a manual spot-check before quoting numbers.
 - `land_area_sf` from Vexcel is the parcel polygon area computed with a local planar projection, accurate at parcel scale.
-- In strict mode, only the six frontend variable keys stream to the UI. Everything else is in the returned dataset. See [`docs/CONTRACT_PROPOSAL.md`](docs/CONTRACT_PROPOSAL.md).
+- In strict mode, only the frontend variable keys stream to the UI. Everything else is in the returned dataset.

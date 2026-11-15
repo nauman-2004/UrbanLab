@@ -6,8 +6,7 @@ const COSTAR_LABEL: Record<string, string | undefined> = { kit: undefined, synth
 
 /** What powers each part of the study. `stub` = placeholder data / integration in the backend today. */
 export function IntegrationBar() {
-  const { state, sourceKind } = useStudy();
-  const live = sourceKind === "live";
+  const { state } = useStudy();
   // CoStar's source is known once the first building arrives (kit, synthetic test kit or sample CSV).
   const first = state.order.length ? state.buildings[state.order[0]] : undefined;
   const costarStub = first ? COSTAR_LABEL[first.costar_source ?? "sample"] : "kit, or sample CSV if not configured";
@@ -25,12 +24,12 @@ export function IntegrationBar() {
       <b className="font-semibold text-muted">Integrations</b>
       {integrations.map((n) => (
         <span key={n.name} className="inline-flex items-center gap-1.5" title={n.stub ? `Placeholder in the backend: ${n.stub}` : undefined}>
-          <i className={`size-1.5 rounded-full ${n.stub ? "bg-amber-500" : live ? "bg-voice" : "bg-derived"}`} />
+          <i className={`size-1.5 rounded-full ${n.stub ? "bg-amber-500" : "bg-voice"}`} />
           {n.name}
           {n.stub && <span className="text-amber-500/80">({n.stub})</span>}
         </span>
       ))}
-      <span className="ml-auto">{live ? "● live agent backend" : "● demo · replaying a recorded backend run"}</span>
+      <span className="ml-auto">● live agent backend</span>
     </footer>
   );
 }
