@@ -52,7 +52,8 @@ export function PropertyPanel({ buildingId }: { buildingId: string | null }) {
   const cell = (name: string) => state.cells[cellKey(b.building_id, name)];
   const vexcelCell = vars.filter((v) => v.source === "vexcel").map((v) => cell(v.name)).find(Boolean);
   const call = state.callOrder.map((id) => state.calls[id]).find((c) => c.building_id === b.building_id);
-  const sample = String(b.costar_id ?? "").startsWith("SAMPLE");
+  const costarBadge =
+    b.costar_source === "synthetic" ? "SYNTHETIC" : b.costar_source === "sample" || String(b.costar_id ?? "").startsWith("SAMPLE") ? "SAMPLE" : null;
 
   return (
     <aside className="scrollbar-thin flex w-full shrink-0 flex-col overflow-y-auto border-line bg-[#121734] xl:w-[340px] xl:border-l" aria-label={`${b.name ?? b.building_id} details`}>
@@ -74,7 +75,7 @@ export function PropertyPanel({ buildingId }: { buildingId: string | null }) {
               <div className="mb-0.5 flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5">
                   <SourceTag source={src} />
-                  {src === "costar" && sample && <StubBadge>SAMPLE</StubBadge>}
+                  {src === "costar" && costarBadge && <StubBadge>{costarBadge}</StubBadge>}
                   {src === "survey" && call?.stub && <StubBadge />}
                 </span>
                 <span className="truncate font-mono text-[10px] text-dim">{src === "costar" && b.costar_id ? `#${b.costar_id}` : LAYER_META[src]}</span>
@@ -98,6 +99,33 @@ export function PropertyPanel({ buildingId }: { buildingId: string | null }) {
           );
         })}
         {!vars.length && <p className="px-1 text-[11.5px] text-dim">Variables appear once the plan is approved.</p>}
+        {b.matterport_models != null && (
+          <div className="rounded-[10px] border border-line bg-[#0e1229] px-2.5 py-2">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="rounded-[5px] bg-mport px-1.5 py-0.5 text-[9px] font-bold tracking-[0.07em] text-[#0b0f1e]">MATTERPORT</span>
+              <span className="font-mono text-[10px] text-dim">
+                {b.matterport_models} scan{b.matterport_models === 1 ? "" : "s"} linked
+              </span>
+            </div>
+            {b.matterport_url ? (
+              <>
+                <iframe
+                  src={b.matterport_url}
+                  title={`Matterport 3D tour of ${b.name ?? b.building_id}`}
+                  className="aspect-video w-full rounded-md border border-line"
+                  allow="xr-spatial-tracking; fullscreen"
+                  loading="lazy"
+                />
+                <a href={b.matterport_url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[10.5px] text-mport hover:underline">
+                  Open 3D tour <Icon name="external" className="size-3" />
+                </a>
+                <p className="mt-0.5 text-[10px] text-dim">A scan may cover one suite or amenity, not the whole building.</p>
+              </>
+            ) : (
+              <p className="text-[11px] text-muted">No Matterport scan is linked to this property.</p>
+            )}
+          </div>
+        )}
       </div>
     </aside>
   );

@@ -37,6 +37,13 @@ TILES_DIR = _path("VEXCEL_TILES_DIR", "data/tiles")
 CACHE_DIR = _path("URBANLAB_CACHE_DIR", "data/cache")
 DATASET_JSON = _path("URBANLAB_DATASET_JSON", "data/dataset.json")
 
+# CoStar property source: auto (kit if COSTAR_KIT_ZIP is set, else sample CSV) | kit | synthetic | sample
+COSTAR_SOURCE = os.getenv("URBANLAB_COSTAR_SOURCE", "auto").strip().lower()
+# Seed for the random property sample drawn from the kit (reproducible, not biased toward low ids).
+SAMPLE_SEED = int(os.getenv("URBANLAB_SAMPLE_SEED", "0"))
+# Matterport 3D-tour links (on hold): off until a real models_index.csv is configured.
+MATTERPORT_LINKS = _flag("URBANLAB_MATTERPORT_LINKS")
+
 # Behaviour
 DEMO_MODE = _flag("DEMO_MODE")
 # Total seconds a cached CoStar + vision replay should take in DEMO_MODE.

@@ -32,8 +32,15 @@ export interface Building {
   address?: string | null;
   city?: string | null;
   property_type?: string | null;
-  lat: number;
-  lng: number;
+  /** null when the CoStar record has no coordinates (kept in the dataset, not shown on the map). */
+  lat: number | null;
+  lng: number | null;
+  /** Where the record came from: the CoStar data kit, the costar/ package's synthetic test kit, or the sample CSV. */
+  costar_source?: "kit" | "synthetic" | "sample";
+  /** Public Matterport Showcase 3D tour (no key needed), when the sponsor index links one to this property. */
+  matterport_url?: string | null;
+  /** How many Matterport scans are linked to this property (null/absent: no Matterport index configured). */
+  matterport_models?: number | null;
   /** Backend-relative URL of the aerial tile the vision model measured. */
   aerial_url?: string;
 }

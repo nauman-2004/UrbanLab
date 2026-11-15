@@ -17,6 +17,7 @@ dependencies = [
     "pillow>=10.0",
     "langchain-google-genai>=4.5.0",
     "langchain-openrouter>=0.2.9",
+    "urbanlab-costar",
 ]
 
 [dependency-groups]
@@ -24,3 +25,6 @@ dev = ["pytest>=8", "httpx>=0.27"]
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+urbanlab-costar = { path = "../costar", editable = true }

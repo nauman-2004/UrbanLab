@@ -57,8 +57,11 @@ def measure_parking_image(image_path: Path) -> ParkingMeasurement:
         "content": [
             {"type": "text", "text": (
                 "You are measuring surface parking from an overhead (orthophoto) tile of one commercial property. "
+                "The tile is about 120 m across and the property is at its CENTRE; neighbouring blocks are visible "
+                "around it, so measure only the parcel at the centre. "
                 "Count surface stalls (striped spaces, occupied or not) and estimate what percent of the lot is surface "
-                "parking. Exclude structured garages. If the image is unusable, return nulls with low confidence. "
+                "parking. Exclude structured garages, including parking on a garage roof. "
+                "If the image is unusable, return nulls with low confidence. "
                 "Do not guess beyond what is visible.")},
             {"type": "image", "base64": b64, "mime_type": mime},
         ],

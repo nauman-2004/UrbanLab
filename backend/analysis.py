@@ -160,8 +160,12 @@ def _limitations(store: DatasetStore, df: pd.DataFrame, outcomes: list[str]) -> 
         out.append("Survey values are self-reported by property managers and unverified.")
     if any(str(c.get("evidence_ref") or "").startswith("STUB") for c in cells):
         out.append("Survey transcripts came from the telephony STUB, not real calls; do not report these values.")
-    if any(str(b.get("costar_id", "")).startswith("SAMPLE") for b in store.buildings.values()):
-        out.append("Property records come from the placeholder CoStar sample CSV, not the live CoStar API.")
+    sources = {b.get("costar_source") for b in store.buildings.values()}
+    if "sample" in sources or any(str(b.get("costar_id", "")).startswith("SAMPLE") for b in store.buildings.values()):
+        out.append("Property records come from the placeholder CoStar sample CSV, not the CoStar data kit.")
+    if "synthetic" in sources:
+        out.append("Property records come from the costar package's synthetic test kit: invented data, "
+                   "not CoStar's. Do not report these values.")
     if any(c["source"] == "vexcel" and c["status"] == "filled" for c in cells):
         out.append("Aerial measurements are vision-model estimates of surface parking; structured garages are excluded.")
     out.append("Survey targets were chosen by the agent, not at random, so survey-based estimates may be biased.")

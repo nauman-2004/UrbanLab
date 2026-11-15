@@ -17,6 +17,6 @@ from tests.test_pipeline_offline import ScriptedModel, install_fakes  # noqa: E4
 
 # Reuse the test's fake vision/extraction patches against the real data dir.
 _mp = pytest.MonkeyPatch()
-install_fakes(Path(main.config.DATA_DIR), _mp)
+install_fakes(Path(main.config.DATA_DIR), _mp, costar_source=None)  # CoStar source from .env
 main._agent = build_agent(model=ScriptedModel())
 app = main.app

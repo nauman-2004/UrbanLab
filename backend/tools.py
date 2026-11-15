@@ -92,10 +92,18 @@ def validate_plan(args: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str
         errors.append("Missing hypothesis.")
     if not sample.get("city") or not sample.get("property_type") or not sample.get("n"):
         errors.append("sample needs city, property_type and n.")
+    city = _CITY_ALIASES.get(str(sample.get("city") or "").strip().lower().replace(".", ""))
+    if sample.get("city") and city is None:
+        errors.append(f"City {sample['city']!r} is not supported: the CoStar data covers only "
+                      f"{' and '.join(integrations.SUPPORTED_CITIES)}. Use one of those, or tell the user the "
+                      "question can't be studied with the available data.")
     if errors:
         return None, errors
     return {"hypothesis": args["hypothesis"], "variables": clean,
-            "sample": {"city": sample["city"], "property_type": sample["property_type"], "n": int(sample["n"])}}, []
+            "sample": {"city": city, "property_type": sample["property_type"], "n": int(sample["n"])}}, []
+
+
+_CITY_ALIASES = {"houston": "Houston", "los angeles": "Los Angeles", "la": "Los Angeles"}
 
 
 def submit_plan(hypothesis: str, variables: list[PlanVariable], sample: PlanSample) -> str:
@@ -154,38 +162,58 @@ def get_costar_properties(city: str, property_type: str, limit: int) -> str:
     store = _store()
     if store.plan is None:
         return _json({"error": "No approved plan yet. The plan must be approved before collecting data."})
+    fetch = lambda: integrations.costar_fetch_properties(city, property_type, limit)  # noqa: E731
     try:
-        rows, from_cache = cache.cached("costar", f"{city}|{property_type}|{limit}",
-                                        lambda: integrations.costar_fetch_properties(city, property_type, limit))
+        source = integrations.costar_source()
+        if source == "kit":
+            # Sponsor data: don't make extra copies of it in the demo cache.
+            rows, from_cache = fetch(), False
+        else:
+            rows, from_cache = cache.cached("costar", f"{source}|{city}|{property_type}|{limit}|{config.SAMPLE_SEED}",
+                                            fetch)
+    except integrations.CoStarError as e:
+        return _json({"error": str(e)})
     except Exception as e:  # noqa: BLE001
         return _json({"error": f"CoStar request failed: {e}"})
     if not rows:
         return _json({"error": f"CoStar returned no {property_type} properties in {city}."})
 
     planned = {v["name"] for v in store.planned_variables() if v["source"] == "costar"}
+    vexcel_vars = _vexcel_vars(store)
     out = []
     for i, row in enumerate(rows, start=1):
         bid = f"B-{i:02d}"
-        meta = {k: row.get(k) for k in ("costar_id", "name", "address", "city", "property_type")}
-        meta["lat"], meta["lng"] = float(row["lat"]), float(row["lng"])
+        meta = {k: row.get(k) for k in ("costar_id", "name", "address", "city", "property_type", "costar_source",
+                                        "matterport_url", "matterport_models")}
+        has_coords = row.get("lat") is not None and row.get("lng") is not None
+        meta["lat"] = float(row["lat"]) if has_coords else None
+        meta["lng"] = float(row["lng"]) if has_coords else None
         store.add_building(bid, meta)
-        ref = f"CoStar #{row.get('costar_id')}"
+        ref = row.get("_ref") or f"CoStar #{row.get('costar_id')}"
+        missing = row.get("_missing") or {}
         for name in _COSTAR_FIELDS:
             if name not in planned:
                 continue
             value = _coerce(name, row.get(name))
             if value is None:
-                store.mark_missing(bid, name, "costar", f"CoStar record {row.get('costar_id')} has no {name}.", ref)
+                reason = missing.get(name) or f"not recorded in CoStar record {row.get('costar_id')}"
+                store.mark_missing(bid, name, "costar", f"CoStar: {reason}.", ref)
             else:
                 store.set_cell(bid, name, value, "costar", 1.0, ref)
+        if not has_coords:
+            for var in vexcel_vars:
+                store.mark_missing(bid, var, "vexcel", "No coordinates in the CoStar record, so no aerial tile.")
         out.append({"building_id": bid, "name": meta["name"], "lat": meta["lat"], "lng": meta["lng"]})
-    return _json({"buildings": out, "count": len(out), "cached": from_cache})
+    return _json({"buildings": out, "count": len(out), "source": source, "cached": from_cache,
+                  "note": "Buildings with lat/lng null have no coordinates: skip them for aerial tiles."})
 
 
 # ====================================================== vision_measurer ====
 def _building_at(store: DatasetStore, lat: float, lng: float) -> str | None:
     best, best_d = None, 1e9
     for bid, b in store.buildings.items():
+        if b.get("lat") is None or b.get("lng") is None:
+            continue
         d = math.hypot(b["lat"] - lat, b["lng"] - lng)
         if d < best_d:
             best, best_d = bid, d
@@ -205,16 +233,19 @@ def get_aerial_tile(lat: float, lng: float) -> str:
     """
     store = _store()
     bid = _building_at(store, lat, lng)
+    if bid is None:
+        # Never spend imagery requests on a point that isn't one of the sampled buildings.
+        return _json({"error": "No sampled building at these coordinates; pass lat/lng exactly as "
+                               "get_costar_properties returned them."})
     try:
-        path = integrations.vexcel_fetch_tile(lat, lng)
+        path = integrations.vexcel_fetch_tile(lat, lng, store.study_id)
     except Exception as e:  # noqa: BLE001
-        if bid:
-            for var in _vexcel_vars(store):
-                store.mark_missing(bid, var, "vexcel", f"No aerial imagery: {e}")
+        for var in _vexcel_vars(store):
+            store.mark_missing(bid, var, "vexcel", f"No aerial imagery: {e}")
         return _json({"building_id": bid, "error": str(e)})
-    if bid:
-        store.buildings[bid]["aerial_tile"] = str(path)
-        events.emit(store.study_id, "building_updated", {"building_id": bid, "aerial_url": f"/tiles/{path.name}"})
+    store.buildings[bid]["aerial_tile"] = str(path)
+    rel = path.relative_to(config.TILES_DIR).as_posix() if path.is_relative_to(config.TILES_DIR) else path.name
+    events.emit(store.study_id, "building_updated", {"building_id": bid, "aerial_url": f"/tiles/{rel}"})
     return _json({"building_id": bid, "image_path": str(path)})
 
 

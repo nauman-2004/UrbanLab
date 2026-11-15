@@ -1,0 +1,20 @@
+# Local tooling
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# Sponsor data and anything derived from it never belongs in git.
+# Default sponsor-data directory (kit inspection output, field map, caches).
+.local/
+*.zip
+*.ply
+*.e57
+*.dxf
+models_index*.csv
+field_map.toml
+residential-listings*.csv

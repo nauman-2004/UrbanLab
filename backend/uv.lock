@@ -1075,6 +1075,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "scipy" },
+    { name = "urbanlab-costar" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -1098,6 +1099,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.7" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "scipy", specifier = ">=1.13" },
+    { name = "urbanlab-costar", editable = "../costar" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
 
@@ -1106,6 +1108,19 @@ dev = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "pytest", specifier = ">=8" },
 ]
+
+[[package]]
+name = "urbanlab-costar"
+version = "0.1.0"
+source = { editable = "../costar" }
+
+[package.metadata]
+requires-dist = [
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
+    { name = "pyzipper", marker = "extra == 'aes'", specifier = ">=0.3.6" },
+]
+provides-extras = ["dev", "aes"]
 
 [[package]]
 name = "urllib3"
