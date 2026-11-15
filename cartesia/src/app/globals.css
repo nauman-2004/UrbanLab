@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* UrbanLab V2 design tokens, copied from frontend/src/app/globals.css on main
+   so the module looks native when it moves into the dashboard. */
+@theme {
+  --color-bg: #090c1a;
+  --color-panel: #11152d;
+  --color-panel2: #161b38;
+  --color-well: #0d1127;
+  --color-line: #232947;
+  --color-line2: #2d3460;
+  --color-ink: #e8eaf6;
+  --color-soft: #c7cbe6;
+  --color-muted: #8c92b6;
+  --color-dim: #5f668c;
+  --color-accent: #8b5cf6;
+  --color-accent2: #a78bfa;
+
+  /* provenance */
+  --color-costar: #60a5fa;
+  --color-voice: #34d399;
+  --color-gap: #f87171;
+  --color-unverified: #fcd34d;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --animate-flash: flash 1.6s ease-out 1;
+  --animate-pulse-ring: pulse-ring 1.8s ease-out infinite;
+  --animate-blink: blink 1s step-end infinite;
+
+  @keyframes flash {
+    0% { background-color: rgb(52 211 153 / 0.35); }
+    100% { background-color: transparent; }
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.8); opacity: 0.8; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 70% -10%, #1b1446 0%, transparent 60%),
+    var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.hatch-gap {
+  background-image: repeating-linear-gradient(45deg, rgb(248 113 113 / 0.1) 0 6px, transparent 6px 12px);
+}
+.unverified-ring {
+  outline: 1.5px dashed var(--color-unverified);
+  outline-offset: -3px;
+}
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line2) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
